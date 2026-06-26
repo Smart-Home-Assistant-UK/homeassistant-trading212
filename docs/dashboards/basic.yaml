@@ -1,0 +1,165 @@
+# Trading212 Dashboard — Basic
+# No extra card types required. Works with a fresh Home Assistant install.
+#
+# How to add this dashboard:
+#   Settings → Dashboards → Add Dashboard
+#   Switch to YAML mode and paste the content under "views:"
+#
+# Entity naming:
+#   Account sensors:  sensor.trading212_<key>              (same for everyone)
+#   Position sensors: sensor.trading212_<ticker_slug>_<attr>
+#     ticker_slug = ticker lowercased with non-alphanumeric chars replaced by _
+#     e.g. VWRL → vwrll_eq → sensor.trading212_vwrll_eq_value
+#   Pie sensors:      sensor.trading212_<pie_name_slug>_<attr>
+#     pie_name_slug = pie name lowercased with spaces/symbols replaced by _
+#     e.g. "Aggressive but Safe" → aggressive_but_safe
+
+views:
+  - title: Overview
+    icon: mdi:chart-line
+    cards:
+      - type: horizontal-stack
+        cards:
+          - type: entity
+            entity: sensor.trading212_total_value
+            name: Total Value
+          - type: entity
+            entity: sensor.trading212_unrealized_pnl
+            name: Unrealized P&L
+          - type: entity
+            entity: sensor.trading212_result_percent
+            name: Overall Return
+
+      - type: horizontal-stack
+        cards:
+          - type: entity
+            entity: sensor.trading212_daily_gain_loss
+            name: Today's Gain/Loss
+          - type: entity
+            entity: sensor.trading212_daily_gain_loss_percent
+            name: Today %
+          - type: entity
+            entity: sensor.trading212_total_dividends
+            name: Dividends
+
+      - type: entities
+        title: Account Details
+        entities:
+          - entity: sensor.trading212_invested
+            name: Amount Invested
+          - entity: sensor.trading212_realized_pnl
+            name: Realized P&L
+          - entity: sensor.trading212_cash_available
+            name: Cash Available
+          - entity: sensor.trading212_cash_in_pies
+            name: Cash in Pies
+          - entity: sensor.trading212_open_positions_count
+            name: Open Positions
+          - entity: sensor.trading212_active_orders_count
+            name: Active Orders
+          - entity: sensor.trading212_last_updated
+            name: Last Updated
+
+      - type: entities
+        title: Daily Movers
+        entities:
+          - entity: sensor.trading212_top_daily_mover
+            name: Top Mover
+          - entity: sensor.trading212_bottom_daily_mover
+            name: Bottom Mover
+          - entity: sensor.trading212_biggest_daily_gain
+            name: Biggest Gain
+          - entity: sensor.trading212_biggest_daily_loss
+            name: Biggest Loss
+
+  - title: Positions
+    icon: mdi:briefcase
+    cards:
+      # Replace the entity IDs below with your own positions.
+      # Find your ticker slugs in Settings → Entities → filter by "trading212".
+      - type: glance
+        title: Position Values
+        columns: 3
+        entities:
+          - entity: sensor.trading212_vnrgl_eq_value
+            name: Vanguard World
+          - entity: sensor.trading212_veual_eq_value
+            name: Vanguard Europe
+          - entity: sensor.trading212_vfegl_eq_value
+            name: Vanguard EM
+          - entity: sensor.trading212_vwrll_eq_value
+            name: Vanguard FTSE
+          - entity: sensor.trading212_fgrdl_eq_value
+            name: Fidelity Grid
+          - entity: sensor.trading212_wbiol_eq_value
+            name: WisdomTree Bio
+          - entity: sensor.trading212_wtnrl_eq_value
+            name: WisdomTree Energy
+          - entity: sensor.trading212_smgbl_eq_value
+            name: SPDR MSCI Mid-Cap
+          - entity: sensor.trading212_vjpbl_eq_value
+            name: Vanguard Japan
+
+      - type: glance
+        title: Position P&L
+        columns: 3
+        entities:
+          - entity: sensor.trading212_vnrgl_eq_pnl
+            name: Vanguard World
+          - entity: sensor.trading212_veual_eq_pnl
+            name: Vanguard Europe
+          - entity: sensor.trading212_vfegl_eq_pnl
+            name: Vanguard EM
+          - entity: sensor.trading212_vwrll_eq_pnl
+            name: Vanguard FTSE
+          - entity: sensor.trading212_fgrdl_eq_pnl
+            name: Fidelity Grid
+          - entity: sensor.trading212_wbiol_eq_pnl
+            name: WisdomTree Bio
+          - entity: sensor.trading212_wtnrl_eq_pnl
+            name: WisdomTree Energy
+          - entity: sensor.trading212_smgbl_eq_pnl
+            name: SPDR MSCI Mid-Cap
+          - entity: sensor.trading212_vjpbl_eq_pnl
+            name: Vanguard Japan
+
+  - title: Pies
+    icon: mdi:chart-pie
+    cards:
+      # Replace entity slugs below with your own pie names.
+      # Find yours in Settings → Entities → filter by "trading212".
+      - type: entities
+        title: Aggressive but Safe
+        entities:
+          - entity: sensor.trading212_aggressive_but_safe_value
+            name: Value
+          - entity: sensor.trading212_aggressive_but_safe_invested
+            name: Invested
+          - entity: sensor.trading212_aggressive_but_safe_pnl
+            name: P&L
+          - entity: sensor.trading212_aggressive_but_safe_pnl_percent
+            name: Return %
+          - entity: sensor.trading212_aggressive_but_safe_cash
+            name: Cash
+          - entity: sensor.trading212_aggressive_but_safe_dividends_gained
+            name: Dividends Gained
+          - entity: sensor.trading212_aggressive_but_safe_dividends_reinvested
+            name: Dividends Reinvested
+
+      - type: entities
+        title: Thematic
+        entities:
+          - entity: sensor.trading212_thematic_value
+            name: Value
+          - entity: sensor.trading212_thematic_invested
+            name: Invested
+          - entity: sensor.trading212_thematic_pnl
+            name: P&L
+          - entity: sensor.trading212_thematic_pnl_percent
+            name: Return %
+          - entity: sensor.trading212_thematic_cash
+            name: Cash
+          - entity: sensor.trading212_thematic_dividends_gained
+            name: Dividends Gained
+          - entity: sensor.trading212_thematic_dividends_reinvested
+            name: Dividends Reinvested

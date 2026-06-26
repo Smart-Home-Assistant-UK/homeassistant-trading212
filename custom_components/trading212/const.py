@@ -1,0 +1,22 @@
+# custom_components/trading212/const.py
+DOMAIN = "trading212"
+
+LIVE_BASE_URL = "https://live.trading212.com"
+DEMO_BASE_URL = "https://demo.trading212.com"
+
+ENVIRONMENT_LIVE = "live"
+ENVIRONMENT_DEMO = "demo"
+
+CONF_ENVIRONMENT = "environment"
+CONF_POLL_INTERVAL = "poll_interval"
+CONF_API_SECRET = "api_secret"
+
+DEFAULT_POLL_INTERVAL = 60
+MIN_POLL_INTERVAL = 30
+
+API_ACCOUNT_SUMMARY = "/api/v0/equity/account/summary"
+API_POSITIONS = "/api/v0/equity/positions"
+API_ORDERS = "/api/v0/equity/orders"
+API_DIVIDENDS = "/api/v0/equity/history/dividends"
+API_INSTRUMENTS = "/api/v0/equity/metadata/instruments"
+API_PIES = "/api/v0/equity/pies"

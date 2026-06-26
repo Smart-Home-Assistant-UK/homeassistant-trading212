@@ -1,0 +1,39 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Trading212",
+        "description": "Enter your Trading212 API credentials. Generate them at Settings → API in the Trading212 app.",
+        "data": {
+          "api_key": "Key ID",
+          "api_secret": "Secret",
+          "environment": "Environment",
+          "poll_interval": "Poll Interval (seconds)"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid credentials — check your Key ID and Secret in Trading212 settings.",
+      "cannot_connect": "Unable to connect to Trading212. Check your internet connection.",
+      "unknown": "Unexpected error. Check the Home Assistant logs.",
+      "invalid_poll_interval": "Poll interval must be at least 30 seconds."
+    },
+    "abort": {
+      "already_configured": "This Trading212 account is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Trading212 Options",
+        "data": {
+          "environment": "Environment",
+          "poll_interval": "Poll Interval (seconds)"
+        }
+      }
+    },
+    "error": {
+      "invalid_poll_interval": "Poll interval must be at least 30 seconds."
+    }
+  }
+}

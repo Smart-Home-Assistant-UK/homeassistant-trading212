@@ -1,0 +1,297 @@
+# Trading212 Dashboard — Mushroom
+# Requires: Mushroom Cards (https://github.com/piitaya/lovelace-mushroom)
+#   Install via HACS or download mushroom.js to www/ and register as a resource.
+#
+# How to add this dashboard:
+#   Settings → Dashboards → Add Dashboard
+#   Switch to YAML mode and paste the content under "views:"
+#
+# Entity naming:
+#   Account sensors:  sensor.trading212_<key>              (same for everyone)
+#   Position sensors: sensor.trading212_<ticker_slug>_<attr>
+#     ticker_slug = ticker lowercased with non-alphanumeric chars replaced by _
+#   Pie sensors:      sensor.trading212_<pie_name_slug>_<attr>
+#     pie_name_slug = pie name lowercased with spaces/symbols replaced by _
+#     e.g. "Aggressive but Safe" → aggressive_but_safe
+
+views:
+  - title: Overview
+    icon: mdi:home-analytics
+    type: panel
+    cards:
+      - type: vertical-stack
+        cards:
+          - type: custom:mushroom-chips-card
+            chips:
+              - type: entity
+                entity: sensor.trading212_total_value
+                icon: mdi:cash-multiple
+                icon_color: green
+              - type: entity
+                entity: sensor.trading212_result_percent
+                icon: mdi:percent
+              - type: entity
+                entity: sensor.trading212_open_positions_count
+                icon: mdi:briefcase-outline
+                icon_color: blue
+              - type: entity
+                entity: sensor.trading212_last_updated
+                icon: mdi:clock-outline
+                icon_color: grey
+
+          - type: horizontal-stack
+            cards:
+              - type: custom:mushroom-entity-card
+                entity: sensor.trading212_total_value
+                name: Total Value
+                icon: mdi:wallet
+                icon_color: green
+                primary_info: state
+                secondary_info: name
+              - type: custom:mushroom-entity-card
+                entity: sensor.trading212_unrealized_pnl
+                name: Unrealized P&L
+                icon: mdi:trending-up
+                icon_color: green
+                primary_info: state
+                secondary_info: name
+              - type: custom:mushroom-entity-card
+                entity: sensor.trading212_result_percent
+                name: Overall Return
+                icon: mdi:percent
+                icon_color: green
+                primary_info: state
+                secondary_info: name
+
+          - type: horizontal-stack
+            cards:
+              - type: custom:mushroom-entity-card
+                entity: sensor.trading212_daily_gain_loss
+                name: "Today's P&L"
+                icon: mdi:calendar-today
+                icon_color: green
+                primary_info: state
+                secondary_info: name
+              - type: custom:mushroom-entity-card
+                entity: sensor.trading212_invested
+                name: Invested
+                icon: mdi:bank-transfer-in
+                icon_color: blue
+                primary_info: state
+                secondary_info: name
+              - type: custom:mushroom-entity-card
+                entity: sensor.trading212_total_dividends
+                name: Dividends
+                icon: mdi:cash-plus
+                icon_color: amber
+                primary_info: state
+                secondary_info: name
+
+          - type: horizontal-stack
+            cards:
+              - type: custom:mushroom-template-card
+                primary: "{{ states('sensor.trading212_top_daily_mover') }}"
+                secondary: >-
+                  Top mover ·
+                  +{{ state_attr('sensor.trading212_top_daily_mover', 'change_value') | round(2) }}
+                  ({{ state_attr('sensor.trading212_top_daily_mover', 'change_pct') | round(2) }}%)
+                icon: mdi:trending-up
+                icon_color: green
+                layout: vertical
+              - type: custom:mushroom-template-card
+                primary: "{{ states('sensor.trading212_bottom_daily_mover') }}"
+                secondary: >-
+                  Bottom mover ·
+                  {{ state_attr('sensor.trading212_bottom_daily_mover', 'change_value') | round(2) }}
+                  ({{ state_attr('sensor.trading212_bottom_daily_mover', 'change_pct') | round(2) }}%)
+                icon: mdi:trending-down
+                icon_color: red
+                layout: vertical
+
+          - type: horizontal-stack
+            cards:
+              - type: custom:mushroom-entity-card
+                entity: sensor.trading212_cash_available
+                name: Cash Available
+                icon: mdi:cash
+                icon_color: green
+                primary_info: state
+                secondary_info: name
+              - type: custom:mushroom-entity-card
+                entity: sensor.trading212_realized_pnl
+                name: Realized P&L
+                icon: mdi:check-circle
+                icon_color: green
+                primary_info: state
+                secondary_info: name
+              - type: custom:mushroom-entity-card
+                entity: sensor.trading212_cash_in_pies
+                name: Cash in Pies
+                icon: mdi:chart-pie
+                icon_color: blue
+                primary_info: state
+                secondary_info: name
+
+  - title: Positions
+    icon: mdi:briefcase
+    cards:
+      - type: custom:mushroom-template-card
+        primary: Vanguard All-World
+        secondary: >-
+          £{{ states('sensor.trading212_vnrgl_eq_value') }}
+          · P&L: £{{ states('sensor.trading212_vnrgl_eq_pnl') }}
+          ({{ states('sensor.trading212_vnrgl_eq_pnl_percent') | float | round(2) }}%)
+        icon: mdi:earth
+        icon_color: >-
+          {{ 'green' if states('sensor.trading212_vnrgl_eq_pnl') | float(0) >= 0 else 'red' }}
+        badge_icon: >-
+          {{ 'mdi:arrow-up' if states('sensor.trading212_vnrgl_eq_pnl') | float(0) >= 0 else 'mdi:arrow-down' }}
+        badge_color: >-
+          {{ 'green' if states('sensor.trading212_vnrgl_eq_pnl') | float(0) >= 0 else 'red' }}
+
+      - type: custom:mushroom-template-card
+        primary: Vanguard Europe
+        secondary: >-
+          £{{ states('sensor.trading212_veual_eq_value') }}
+          · P&L: £{{ states('sensor.trading212_veual_eq_pnl') }}
+          ({{ states('sensor.trading212_veual_eq_pnl_percent') | float | round(2) }}%)
+        icon: mdi:map-marker
+        icon_color: >-
+          {{ 'green' if states('sensor.trading212_veual_eq_pnl') | float(0) >= 0 else 'red' }}
+        badge_icon: >-
+          {{ 'mdi:arrow-up' if states('sensor.trading212_veual_eq_pnl') | float(0) >= 0 else 'mdi:arrow-down' }}
+        badge_color: >-
+          {{ 'green' if states('sensor.trading212_veual_eq_pnl') | float(0) >= 0 else 'red' }}
+
+      - type: custom:mushroom-template-card
+        primary: Vanguard Emerging Markets
+        secondary: >-
+          £{{ states('sensor.trading212_vfegl_eq_value') }}
+          · P&L: £{{ states('sensor.trading212_vfegl_eq_pnl') }}
+          ({{ states('sensor.trading212_vfegl_eq_pnl_percent') | float | round(2) }}%)
+        icon: mdi:sprout
+        icon_color: >-
+          {{ 'green' if states('sensor.trading212_vfegl_eq_pnl') | float(0) >= 0 else 'red' }}
+        badge_icon: >-
+          {{ 'mdi:arrow-up' if states('sensor.trading212_vfegl_eq_pnl') | float(0) >= 0 else 'mdi:arrow-down' }}
+        badge_color: >-
+          {{ 'green' if states('sensor.trading212_vfegl_eq_pnl') | float(0) >= 0 else 'red' }}
+
+      - type: custom:mushroom-template-card
+        primary: Vanguard FTSE All-World
+        secondary: >-
+          £{{ states('sensor.trading212_vwrll_eq_value') }}
+          · P&L: £{{ states('sensor.trading212_vwrll_eq_pnl') }}
+          ({{ states('sensor.trading212_vwrll_eq_pnl_percent') | float | round(2) }}%)
+        icon: mdi:flag-variant
+        icon_color: >-
+          {{ 'green' if states('sensor.trading212_vwrll_eq_pnl') | float(0) >= 0 else 'red' }}
+        badge_icon: >-
+          {{ 'mdi:arrow-up' if states('sensor.trading212_vwrll_eq_pnl') | float(0) >= 0 else 'mdi:arrow-down' }}
+        badge_color: >-
+          {{ 'green' if states('sensor.trading212_vwrll_eq_pnl') | float(0) >= 0 else 'red' }}
+
+      - type: custom:mushroom-template-card
+        primary: WisdomTree Blockchain
+        secondary: >-
+          £{{ states('sensor.trading212_bkcnl_eq_value') }}
+          · P&L: £{{ states('sensor.trading212_bkcnl_eq_pnl') }}
+          ({{ states('sensor.trading212_bkcnl_eq_pnl_percent') | float | round(2) }}%)
+        icon: mdi:bitcoin
+        icon_color: >-
+          {{ 'green' if states('sensor.trading212_bkcnl_eq_pnl') | float(0) >= 0 else 'red' }}
+        badge_icon: >-
+          {{ 'mdi:arrow-up' if states('sensor.trading212_bkcnl_eq_pnl') | float(0) >= 0 else 'mdi:arrow-down' }}
+        badge_color: >-
+          {{ 'green' if states('sensor.trading212_bkcnl_eq_pnl') | float(0) >= 0 else 'red' }}
+
+      - type: custom:mushroom-template-card
+        primary: WisdomTree Clean Energy
+        secondary: >-
+          £{{ states('sensor.trading212_wrenl_eq_value') }}
+          · P&L: £{{ states('sensor.trading212_wrenl_eq_pnl') }}
+          ({{ states('sensor.trading212_wrenl_eq_pnl_percent') | float | round(2) }}%)
+        icon: mdi:leaf
+        icon_color: >-
+          {{ 'green' if states('sensor.trading212_wrenl_eq_pnl') | float(0) >= 0 else 'red' }}
+        badge_icon: >-
+          {{ 'mdi:arrow-up' if states('sensor.trading212_wrenl_eq_pnl') | float(0) >= 0 else 'mdi:arrow-down' }}
+        badge_color: >-
+          {{ 'green' if states('sensor.trading212_wrenl_eq_pnl') | float(0) >= 0 else 'red' }}
+
+  - title: Pies
+    icon: mdi:chart-pie
+    cards:
+      - type: custom:mushroom-template-card
+        primary: Aggressive but Safe
+        secondary: >-
+          Value: £{{ states('sensor.trading212_aggressive_but_safe_value') }}
+          · Return: {{ states('sensor.trading212_aggressive_but_safe_pnl_percent') }}%
+        icon: mdi:chart-donut
+        icon_color: >-
+          {{ 'green' if states('sensor.trading212_aggressive_but_safe_pnl') | float(0) >= 0 else 'red' }}
+        badge_icon: >-
+          {{ 'mdi:arrow-up' if states('sensor.trading212_aggressive_but_safe_pnl') | float(0) >= 0 else 'mdi:arrow-down' }}
+        badge_color: >-
+          {{ 'green' if states('sensor.trading212_aggressive_but_safe_pnl') | float(0) >= 0 else 'red' }}
+
+      - type: horizontal-stack
+        cards:
+          - type: custom:mushroom-entity-card
+            entity: sensor.trading212_aggressive_but_safe_value
+            name: Value
+            icon: mdi:cash
+            icon_color: green
+            primary_info: state
+            secondary_info: name
+          - type: custom:mushroom-entity-card
+            entity: sensor.trading212_aggressive_but_safe_pnl
+            name: P&L
+            icon: mdi:trending-up
+            icon_color: green
+            primary_info: state
+            secondary_info: name
+          - type: custom:mushroom-entity-card
+            entity: sensor.trading212_aggressive_but_safe_dividends_gained
+            name: Dividends
+            icon: mdi:cash-plus
+            icon_color: amber
+            primary_info: state
+            secondary_info: name
+
+      - type: custom:mushroom-template-card
+        primary: Thematic
+        secondary: >-
+          Value: £{{ states('sensor.trading212_thematic_value') }}
+          · Return: {{ states('sensor.trading212_thematic_pnl_percent') }}%
+        icon: mdi:chart-donut
+        icon_color: >-
+          {{ 'green' if states('sensor.trading212_thematic_pnl') | float(0) >= 0 else 'red' }}
+        badge_icon: >-
+          {{ 'mdi:arrow-up' if states('sensor.trading212_thematic_pnl') | float(0) >= 0 else 'mdi:arrow-down' }}
+        badge_color: >-
+          {{ 'green' if states('sensor.trading212_thematic_pnl') | float(0) >= 0 else 'red' }}
+
+      - type: horizontal-stack
+        cards:
+          - type: custom:mushroom-entity-card
+            entity: sensor.trading212_thematic_value
+            name: Value
+            icon: mdi:cash
+            icon_color: green
+            primary_info: state
+            secondary_info: name
+          - type: custom:mushroom-entity-card
+            entity: sensor.trading212_thematic_pnl
+            name: P&L
+            icon: mdi:trending-up
+            icon_color: red
+            primary_info: state
+            secondary_info: name
+          - type: custom:mushroom-entity-card
+            entity: sensor.trading212_thematic_dividends_gained
+            name: Dividends
+            icon: mdi:cash-plus
+            icon_color: amber
+            primary_info: state
+            secondary_info: name
