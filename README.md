@@ -12,7 +12,9 @@ A read-only [Home Assistant](https://www.home-assistant.io/) custom component (H
 
 > **Don't have a Trading212 account yet?** Sign up with [this referral link](https://www.trading212.com/invite/1BlRG9Ii19) and we both receive a free share worth up to £100.
 
-![mushroom overview](docs/dashboards/screenshots/mushroom-overview.png)
+| Default theme | iOS dark theme |
+|---------------|----------------|
+| ![Health card](docs/screenshots/default/health-card.png) | ![Health card dark](docs/screenshots/ios-dark/health-card.png) |
 
 ---
 
@@ -110,9 +112,47 @@ Ten sensors per pie, where the slug is the pie name lowercased with spaces and s
 
 Ready-to-use dashboard configs are in [`docs/dashboards/`](docs/dashboards/).
 
+### Trading212 Card (recommended)
+
+The companion [lovelace-trading212-card](https://github.com/Smart-Home-Assistant-UK/lovelace-trading212-card) gives you purpose-built cards that auto-detect your sensors with zero config. Install via HACS → Frontend.
+
+```yaml
+type: custom:investment-health-card
+```
+
+```yaml
+type: custom:investment-portfolio-card
+```
+
+Full dashboard YAML: [`docs/dashboards/investment-card.yaml`](docs/dashboards/investment-card.yaml)
+
+| Health | Portfolio |
+|--------|-----------|
+| ![Health card](docs/screenshots/default/health-card.png) | ![Portfolio card](docs/screenshots/default/portfolio-card.png) |
+
+| Positions | Positions expanded |
+|-----------|--------------------|
+| ![Positions card](docs/screenshots/default/positions-card.png) | ![Positions expanded](docs/screenshots/default/positions-card-expanded.png) |
+
+| Pies | Pies expanded |
+|------|---------------|
+| ![Pies card](docs/screenshots/default/pies-card.png) | ![Pies expanded](docs/screenshots/default/pies-card-expanded.png) |
+
+#### iOS dark theme
+
+| Health | Portfolio |
+|--------|-----------|
+| ![Health dark](docs/screenshots/ios-dark/health-card.png) | ![Portfolio dark](docs/screenshots/ios-dark/portfolio-card.png) |
+
+| Positions | Pies |
+|-----------|------|
+| ![Positions dark](docs/screenshots/ios-dark/positions-card.png) | ![Pies dark](docs/screenshots/ios-dark/pies-card.png) |
+
 ### Basic (no dependencies)
 
-Works out of the box with a standard Home Assistant install.
+Works out of the box with a standard Home Assistant install — no extra card types needed.
+
+Full dashboard YAML: [`docs/dashboards/basic.yaml`](docs/dashboards/basic.yaml)
 
 | Overview | Positions | Pies |
 |----------|-----------|------|
@@ -121,6 +161,8 @@ Works out of the box with a standard Home Assistant install.
 ### Mushroom
 
 Requires [Mushroom Cards](https://github.com/piitaya/lovelace-mushroom) (available on HACS).
+
+Full dashboard YAML: [`docs/dashboards/mushroom.yaml`](docs/dashboards/mushroom.yaml)
 
 | Overview | Positions | Pies |
 |----------|-----------|------|

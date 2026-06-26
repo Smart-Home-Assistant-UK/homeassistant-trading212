@@ -1,0 +1,14 @@
+# Trading212 Lovelace Card — Dashboard
+# Requires: lovelace-trading212-card (https://github.com/Smart-Home-Assistant-UK/lovelace-trading212-card)
+# Install via HACS → Frontend → Trading212 Card, then reload your browser.
+#
+# All five cards auto-detect sensor.trading212_* entities — zero config needed.
+# See the card repo for advanced configuration options.
+
+views:
+  - title: Investment
+    icon: mdi:finance
+    cards:
+      - type: custom:investment-health-card
+
+      - type: custom:investment-portfolio-card
