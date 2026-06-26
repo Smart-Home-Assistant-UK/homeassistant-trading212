@@ -114,7 +114,12 @@ Ready-to-use dashboard configs are in [`docs/dashboards/`](docs/dashboards/).
 
 ### Trading212 Card (recommended)
 
-The companion [lovelace-trading212-card](https://github.com/Smart-Home-Assistant-UK/lovelace-trading212-card) gives you purpose-built cards that auto-detect your sensors with zero config. Install via HACS → Frontend.
+The companion [lovelace-trading212-card](https://github.com/Smart-Home-Assistant-UK/lovelace-trading212-card) gives you purpose-built cards that auto-detect your sensors with zero config.
+
+**Install via HACS (custom repository — category: Plugin):**
+1. HACS → Frontend → ⋮ → **Custom repositories**
+2. URL: `https://github.com/Smart-Home-Assistant-UK/lovelace-trading212-card` · Category: **Plugin**
+3. Add → install → reload browser
 
 ```yaml
 type: custom:investment-health-card
