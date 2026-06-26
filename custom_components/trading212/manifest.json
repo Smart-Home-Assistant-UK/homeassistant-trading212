@@ -3,10 +3,10 @@
   "name": "Trading212",
   "codeowners": ["@sepehrs"],
   "config_flow": true,
-  "documentation": "https://github.com/sepehrs/ha-trading212#readme",
+  "documentation": "https://github.com/Smart-Home-Assistant-UK/homeassistant-trading212#readme",
   "integration_type": "service",
   "iot_class": "cloud_polling",
-  "issue_tracker": "https://github.com/sepehrs/ha-trading212/issues",
+  "issue_tracker": "https://github.com/Smart-Home-Assistant-UK/homeassistant-trading212/issues",
   "requirements": [],
   "version": "1.0.0"
 }
