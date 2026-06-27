@@ -398,3 +398,75 @@ async def test_previous_state_populated_after_first_fetch(hass, mock_client):
     assert coord._is_first_fetch is False
     assert "div_001" in coord._seen_dividend_ids
     assert "div_002" in coord._seen_dividend_ids
+
+
+async def test_position_opened_event_fires_on_new_ticker(hass, mock_client):
+    from homeassistant.config_entries import ConfigEntry
+    from unittest.mock import MagicMock
+    from custom_components.trading212.const import EVENT_POSITION_OPENED
+
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_pos_opened"
+    coord = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+    await coord.async_refresh()  # first fetch — no events
+
+    events = []
+    hass.bus.async_listen(EVENT_POSITION_OPENED, lambda e: events.append(e))
+
+    mock_client.get_positions.return_value = MOCK_POSITIONS + [
+        {
+            "ticker": "TSLA_US_EQ",
+            "quantity": 2.0,
+            "averagePrice": 200.0,
+            "currentPrice": 220.0,
+            "ppl": 40.0,
+            "fxPpl": 0.0,
+        }
+    ]
+    await coord.async_refresh()
+
+    assert len(events) == 1
+    assert events[0].data["ticker"] == "TSLA_US_EQ"
+    assert events[0].data["quantity"] == 2.0
+    assert events[0].data["value"] == pytest.approx(440.0)
+
+
+async def test_position_closed_event_fires_on_removed_ticker(hass, mock_client):
+    from homeassistant.config_entries import ConfigEntry
+    from unittest.mock import MagicMock
+    from custom_components.trading212.const import EVENT_POSITION_CLOSED
+
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_pos_closed"
+    coord = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+    await coord.async_refresh()  # first fetch — no events
+
+    events = []
+    hass.bus.async_listen(EVENT_POSITION_CLOSED, lambda e: events.append(e))
+
+    # Remove AAPL from positions
+    mock_client.get_positions.return_value = [MOCK_POSITIONS[1]]
+    await coord.async_refresh()
+
+    assert len(events) == 1
+    assert events[0].data["ticker"] == "AAPL_US_EQ"
+    assert events[0].data["name"] == "Apple"
+
+
+async def test_no_position_events_when_positions_unchanged(hass, mock_client):
+    from homeassistant.config_entries import ConfigEntry
+    from unittest.mock import MagicMock
+    from custom_components.trading212.const import EVENT_POSITION_OPENED, EVENT_POSITION_CLOSED
+
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_pos_unchanged"
+    coord = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+    await coord.async_refresh()
+
+    events = []
+    for t in [EVENT_POSITION_OPENED, EVENT_POSITION_CLOSED]:
+        hass.bus.async_listen(t, lambda e: events.append(e))
+
+    await coord.async_refresh()  # same positions
+
+    assert events == []

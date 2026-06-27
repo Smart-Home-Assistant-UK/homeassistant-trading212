@@ -294,6 +294,24 @@ class Trading212Coordinator(DataUpdateCoordinator[CoordinatorData]):
                     self._seen_dividend_ids.add(div_id)
             await self._seen_dividends_store.async_save(list(self._seen_dividend_ids))
             self._is_first_fetch = False
+        else:
+            # Position events
+            current_slugs = set(positions.keys())
+            prev_slugs = set(self._previous_positions.keys())
+            for slug in current_slugs - prev_slugs:
+                pos = positions[slug]
+                self.hass.bus.async_fire(EVENT_POSITION_OPENED, {
+                    "ticker": pos.ticker,
+                    "name": pos.instrument_name,
+                    "value": pos.value,
+                    "quantity": pos.quantity,
+                })
+            for slug in prev_slugs - current_slugs:
+                pos = self._previous_positions[slug]
+                self.hass.bus.async_fire(EVENT_POSITION_CLOSED, {
+                    "ticker": pos.ticker,
+                    "name": pos.instrument_name,
+                })
 
         self._previous_positions = positions
         self._previous_pies = pies
