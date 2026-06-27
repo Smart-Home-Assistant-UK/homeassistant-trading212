@@ -607,3 +607,24 @@ async def test_dividend_ids_persisted_after_first_fetch(hass, mock_client):
 
     assert "div_001" in coord._seen_dividend_ids
     assert "div_002" in coord._seen_dividend_ids
+
+
+async def test_dividend_not_refired_after_restart(hass, mock_client):
+    from homeassistant.config_entries import ConfigEntry
+    from unittest.mock import MagicMock
+    from custom_components.trading212.const import EVENT_DIVIDEND_RECEIVED
+
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_div_restart"
+
+    coord1 = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+    await coord1.async_refresh()  # seeds div_001 and div_002 to Store
+
+    # Simulate restart: new coordinator instance, same entry_id, same hass
+    coord2 = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+
+    events = []
+    hass.bus.async_listen(EVENT_DIVIDEND_RECEIVED, lambda e: events.append(e))
+    await coord2.async_refresh()  # should load from Store, not fire anything
+
+    assert events == [], f"Re-fired after restart: {[e.data for e in events]}"

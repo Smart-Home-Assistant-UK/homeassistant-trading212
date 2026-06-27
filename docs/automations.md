@@ -11,9 +11,9 @@ The Trading212 integration exposes two types of automation hooks:
 
 ## Custom Events
 
-Use an `event` trigger in your automation to listen for these. All events are fired after
-the coordinator's sensor data has updated, so sensor state is already current when your
-automation runs.
+Use an `event` trigger in your automation to listen for these. Events fire during the same
+poll cycle as sensor updates. Sensor states are typically current by the time your automation
+action executes, but the events are dispatched before sensor platforms process the new data.
 
 ### `trading212_position_opened`
 
