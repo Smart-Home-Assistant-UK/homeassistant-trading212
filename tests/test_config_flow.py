@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant import config_entries
@@ -20,20 +20,39 @@ VALID_INPUT = {
 }
 
 
+_ACCOUNT_SUMMARY = {
+    "id": 12345,
+    "currency": "GBP",
+    "totalValue": 0.0,
+    "cash": {"availableToTrade": 0.0, "inPies": 0.0, "reservedForOrders": 0.0},
+    "investments": {
+        "totalCost": 0.0,
+        "unrealizedProfitLoss": 0.0,
+        "realizedProfitLoss": 0.0,
+        "currentValue": 0.0,
+    },
+}
+
+
 @pytest.fixture(autouse=True)
 def mock_api_validation():
-    with patch(
-        "custom_components.trading212.config_flow.Trading212Client"
-    ) as mock_cls, patch(
-        "custom_components.trading212.Trading212Coordinator"
-    ) as mock_coord_cls:
-        mock_client = AsyncMock()
-        mock_client.get_account_summary.return_value = {"id": 12345, "currency": "GBP", "totalValue": 1000.0}
-        mock_cls.return_value = mock_client
+    def _make_client():
+        client = AsyncMock()
+        client.get_account_summary.return_value = _ACCOUNT_SUMMARY
+        client.get_instruments.return_value = []
+        client.get_positions.return_value = []
+        client.get_orders.return_value = []
+        client.get_dividends.return_value = {"items": [], "nextPageKey": None}
+        client.get_pies.return_value = []
+        return client
 
-        mock_coord = MagicMock()
-        mock_coord.async_config_entry_first_refresh = AsyncMock(return_value=None)
-        mock_coord_cls.return_value = mock_coord
+    with patch(
+        "custom_components.trading212.config_flow.Trading212Client",
+        return_value=_make_client(),
+    ) as mock_cls, patch(
+        "custom_components.trading212.Trading212Client",
+        side_effect=lambda *a, **kw: _make_client(),
+    ):
         yield mock_cls
 
 

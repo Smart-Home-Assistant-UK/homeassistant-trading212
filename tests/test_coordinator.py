@@ -526,6 +526,7 @@ async def test_pie_deleted_event_fires_on_removed_pie(hass, mock_client):
 
     mock_client.get_pies.return_value = []
     await coord.async_refresh()
+    await hass.async_block_till_done()
 
     assert len(events) == 1
     assert events[0].data["pie_id"] == 1001
