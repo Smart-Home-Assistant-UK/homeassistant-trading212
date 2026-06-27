@@ -470,3 +470,76 @@ async def test_no_position_events_when_positions_unchanged(hass, mock_client):
     await coord.async_refresh()  # same positions
 
     assert events == []
+
+
+MOCK_NEW_PIE = {
+    "id": 2002,
+    "cash": 0.0,
+    "dividendDetails": {"gained": 0.0, "inCash": 0.0, "reinvested": 0.0},
+    "progress": 0.0,
+    "result": {"investedValue": 100.0, "result": 0.0, "resultCoefficient": 0.0, "value": 100.0},
+    "settings": {"goal": 500.0, "id": 2002, "name": "New Pie"},
+}
+
+
+async def test_pie_created_event_fires_on_new_pie(hass, mock_client):
+    from homeassistant.config_entries import ConfigEntry
+    from unittest.mock import MagicMock
+    from custom_components.trading212.const import EVENT_PIE_CREATED
+
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_pie_created"
+    coord = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+    await coord.async_refresh()
+
+    events = []
+    hass.bus.async_listen(EVENT_PIE_CREATED, lambda e: events.append(e))
+
+    mock_client.get_pies.return_value = MOCK_PIES + [MOCK_NEW_PIE]
+    mock_client.get_pie.return_value = MOCK_NEW_PIE
+    await coord.async_refresh()
+
+    assert len(events) == 1
+    assert events[0].data["pie_id"] == 2002
+    assert events[0].data["name"] == "New Pie"
+    assert events[0].data["value"] == pytest.approx(100.0)
+
+
+async def test_pie_deleted_event_fires_on_removed_pie(hass, mock_client):
+    from homeassistant.config_entries import ConfigEntry
+    from unittest.mock import MagicMock
+    from custom_components.trading212.const import EVENT_PIE_DELETED
+
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_pie_deleted"
+    coord = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+    await coord.async_refresh()
+
+    events = []
+    hass.bus.async_listen(EVENT_PIE_DELETED, lambda e: events.append(e))
+
+    mock_client.get_pies.return_value = []
+    await coord.async_refresh()
+
+    assert len(events) == 1
+    assert events[0].data["pie_id"] == 1001
+    assert events[0].data["name"] == "Growth Pie"
+
+
+async def test_no_pie_events_when_pies_unchanged(hass, mock_client):
+    from homeassistant.config_entries import ConfigEntry
+    from unittest.mock import MagicMock
+    from custom_components.trading212.const import EVENT_PIE_CREATED, EVENT_PIE_DELETED
+
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_pie_unchanged"
+    coord = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+    await coord.async_refresh()
+
+    events = []
+    for t in [EVENT_PIE_CREATED, EVENT_PIE_DELETED]:
+        hass.bus.async_listen(t, lambda e: events.append(e))
+
+    await coord.async_refresh()
+
+    assert events == []

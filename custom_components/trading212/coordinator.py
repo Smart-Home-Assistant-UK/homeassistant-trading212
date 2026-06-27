@@ -313,6 +313,25 @@ class Trading212Coordinator(DataUpdateCoordinator[CoordinatorData]):
                     "name": pos.instrument_name,
                 })
 
+            # Pie events — diff by pie_id to handle slug collisions/renames
+            current_pie_ids = {p.pie_id for p in pies.values()}
+            prev_pie_ids = {p.pie_id for p in self._previous_pies.values()}
+            curr_pies_by_id = {p.pie_id: p for p in pies.values()}
+            prev_pies_by_id = {p.pie_id: p for p in self._previous_pies.values()}
+            for pie_id in current_pie_ids - prev_pie_ids:
+                pie = curr_pies_by_id[pie_id]
+                self.hass.bus.async_fire(EVENT_PIE_CREATED, {
+                    "pie_id": pie_id,
+                    "name": pie.name,
+                    "value": pie.value,
+                })
+            for pie_id in prev_pie_ids - current_pie_ids:
+                pie = prev_pies_by_id[pie_id]
+                self.hass.bus.async_fire(EVENT_PIE_DELETED, {
+                    "pie_id": pie_id,
+                    "name": pie.name,
+                })
+
         self._previous_positions = positions
         self._previous_pies = pies
         # --- end automation event hooks ---
