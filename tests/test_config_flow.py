@@ -14,19 +14,45 @@ from custom_components.trading212.const import (
 
 VALID_INPUT = {
     "api_key": "test_key",
+    "api_secret": "test_secret",
     CONF_ENVIRONMENT: ENVIRONMENT_DEMO,
     CONF_POLL_INTERVAL: 60,
 }
 
 
+_ACCOUNT_SUMMARY = {
+    "id": 12345,
+    "currency": "GBP",
+    "totalValue": 0.0,
+    "cash": {"availableToTrade": 0.0, "inPies": 0.0, "reservedForOrders": 0.0},
+    "investments": {
+        "totalCost": 0.0,
+        "unrealizedProfitLoss": 0.0,
+        "realizedProfitLoss": 0.0,
+        "currentValue": 0.0,
+    },
+}
+
+
 @pytest.fixture(autouse=True)
 def mock_api_validation():
+    def _make_client():
+        client = AsyncMock()
+        client.get_account_summary.return_value = _ACCOUNT_SUMMARY
+        client.get_instruments.return_value = []
+        client.get_positions.return_value = []
+        client.get_orders.return_value = []
+        client.get_dividends.return_value = {"items": [], "nextPageKey": None}
+        client.get_pies.return_value = []
+        return client
+
     with patch(
-        "custom_components.trading212.config_flow.Trading212Client"
-    ) as mock_cls:
-        mock_client = AsyncMock()
-        mock_client.get_account_summary.return_value = {"id": 12345, "currency": "GBP", "totalValue": 1000.0}
-        mock_cls.return_value = mock_client
+        "custom_components.trading212.config_flow.Trading212Client",
+        return_value=_make_client(),
+    ) as mock_cls, patch(
+        "custom_components.trading212.Trading212Client",
+        side_effect=lambda *a, **kw: _make_client(),
+    ):
         yield mock_cls
 
 

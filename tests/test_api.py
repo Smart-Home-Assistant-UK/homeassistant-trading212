@@ -1,6 +1,6 @@
 import pytest
-from aioresponses import aioresponses
 import aiohttp
+from aioresponses import aioresponses
 
 from custom_components.trading212.api import (
     Trading212Client,
@@ -70,7 +70,10 @@ PIES_RESPONSE = [
 
 @pytest.fixture
 async def client():
-    async with aiohttp.ClientSession() as session:
+    # Use ThreadedResolver to avoid pycares spawning a daemon thread on teardown,
+    # which would trip pytest-homeassistant-custom-component's verify_cleanup fixture.
+    connector = aiohttp.TCPConnector(resolver=aiohttp.ThreadedResolver())
+    async with aiohttp.ClientSession(connector=connector) as session:
         yield Trading212Client(session, API_KEY, BASE_URL)
 
 
