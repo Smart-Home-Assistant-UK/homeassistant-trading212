@@ -63,8 +63,8 @@ MOCK_POSITIONS = [
 MOCK_ORDERS = [{"id": 1}, {"id": 2}]
 MOCK_DIVIDENDS = {
     "items": [
-        {"id": "div_001", "ticker": "AAPL_US_EQ", "amount": 5.0, "paidOn": "2026-06-20"},
-        {"id": "div_002", "ticker": "MSFT_US_EQ", "amount": 3.0, "paidOn": "2026-06-15"},
+        {"reference": "div_001", "ticker": "AAPL_US_EQ", "amount": 5.0, "paidOn": "2026-06-20"},
+        {"reference": "div_002", "ticker": "MSFT_US_EQ", "amount": 3.0, "paidOn": "2026-06-15"},
     ],
     "nextPageKey": None,
 }
@@ -560,9 +560,9 @@ async def test_dividend_received_event_fires_for_new_dividend(hass, mock_client)
 
     mock_client.get_dividends.return_value = {
         "items": [
-            {"id": "div_001", "ticker": "AAPL_US_EQ", "amount": 5.0, "paidOn": "2026-06-20"},
-            {"id": "div_002", "ticker": "MSFT_US_EQ", "amount": 3.0, "paidOn": "2026-06-15"},
-            {"id": "div_003", "ticker": "AAPL_US_EQ", "amount": 6.5, "paidOn": "2026-06-27"},
+            {"reference": "div_001", "ticker": "AAPL_US_EQ", "amount": 5.0, "paidOn": "2026-06-20"},
+            {"reference": "div_002", "ticker": "MSFT_US_EQ", "amount": 3.0, "paidOn": "2026-06-15"},
+            {"reference": "div_003", "ticker": "AAPL_US_EQ", "amount": 6.5, "paidOn": "2026-06-27"},
         ],
         "nextPageKey": None,
     }

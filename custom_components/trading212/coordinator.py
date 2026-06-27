@@ -289,7 +289,7 @@ class Trading212Coordinator(DataUpdateCoordinator[CoordinatorData]):
             if stored_divs:
                 self._seen_dividend_ids = set(stored_divs)
             for div in div_items:
-                div_id = str(div.get("id", ""))
+                div_id = str(div.get("reference", ""))
                 if div_id:
                     self._seen_dividend_ids.add(div_id)
             await self._seen_dividends_store.async_save(list(self._seen_dividend_ids))
@@ -334,7 +334,7 @@ class Trading212Coordinator(DataUpdateCoordinator[CoordinatorData]):
 
             # Dividend events
             for div in div_items:
-                div_id = str(div.get("id", ""))
+                div_id = str(div.get("reference", ""))
                 if div_id and div_id not in self._seen_dividend_ids:
                     ticker = div.get("ticker", "")
                     self.hass.bus.async_fire(EVENT_DIVIDEND_RECEIVED, {
