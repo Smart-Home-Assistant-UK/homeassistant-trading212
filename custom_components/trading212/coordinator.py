@@ -16,7 +16,14 @@ from .api import (
     APIConnectionError,
     RateLimitExceededError,
 )
-from .const import DOMAIN
+from .const import (
+    DOMAIN,
+    EVENT_DIVIDEND_RECEIVED,
+    EVENT_PIE_CREATED,
+    EVENT_PIE_DELETED,
+    EVENT_POSITION_CLOSED,
+    EVENT_POSITION_OPENED,
+)
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -112,6 +119,11 @@ class Trading212Coordinator(DataUpdateCoordinator[CoordinatorData]):
         self._daily_baseline: dict[str, float] = {}
         self._baseline_date: date | None = None
         self._store = Store(hass, 1, f"{DOMAIN}.{config_entry.entry_id}.baseline")
+        self._seen_dividends_store = Store(hass, 1, f"{DOMAIN}.{config_entry.entry_id}.seen_dividends")
+        self._previous_positions: dict[str, Position] = {}
+        self._previous_pies: dict[str, Pie] = {}
+        self._seen_dividend_ids: set[str] = set()
+        self._is_first_fetch: bool = True
 
     async def _async_update_data(self) -> CoordinatorData:
         if not self._instruments:
@@ -193,9 +205,11 @@ class Trading212Coordinator(DataUpdateCoordinator[CoordinatorData]):
                         "goal": float(settings.get("goal") or 0),
                     }
                 except RateLimitExceededError:
-                    pass  # Don't cache — retry on next poll
-                except Exception:
-                    self._pie_details[pie_id] = {"name": f"Pie {pie_id}", "goal": 0.0}
+                    _LOGGER.debug("Rate limited fetching pie %s details; will retry", pie_id)
+                except Exception as err:
+                    _LOGGER.warning(
+                        "Failed to fetch details for pie %s: %s; will retry next poll", pie_id, err
+                    )
             pie_info = self._pie_details.get(pie_id, {"name": f"Pie {pie_id}", "goal": 0.0})
             name = pie_info["name"]
             slug = ticker_to_slug(name)
@@ -268,6 +282,22 @@ class Trading212Coordinator(DataUpdateCoordinator[CoordinatorData]):
         # Sum dividends
         div_items = dividends_raw.get("items", []) if isinstance(dividends_raw, dict) else []
         total_dividends = sum(float(d.get("amount", 0)) for d in div_items)
+
+        # --- Automation event hooks ---
+        if self._is_first_fetch:
+            stored_divs = await self._seen_dividends_store.async_load()
+            if stored_divs:
+                self._seen_dividend_ids = set(stored_divs)
+            for div in div_items:
+                div_id = str(div.get("id", ""))
+                if div_id:
+                    self._seen_dividend_ids.add(div_id)
+            await self._seen_dividends_store.async_save(list(self._seen_dividend_ids))
+            self._is_first_fetch = False
+
+        self._previous_positions = positions
+        self._previous_pies = pies
+        # --- end automation event hooks ---
 
         return CoordinatorData(
             total_value=float(summary.get("totalValue", 0)),

@@ -61,7 +61,13 @@ MOCK_POSITIONS = [
 ]
 
 MOCK_ORDERS = [{"id": 1}, {"id": 2}]
-MOCK_DIVIDENDS = {"items": [{"amount": 5.0}, {"amount": 3.0}], "nextPageKey": None}
+MOCK_DIVIDENDS = {
+    "items": [
+        {"id": "div_001", "ticker": "AAPL_US_EQ", "amount": 5.0, "paidOn": "2026-06-20"},
+        {"id": "div_002", "ticker": "MSFT_US_EQ", "amount": 3.0, "paidOn": "2026-06-15"},
+    ],
+    "nextPageKey": None,
+}
 MOCK_INSTRUMENTS = [
     {"ticker": "AAPL_US_EQ", "shortName": "Apple"},
     {"ticker": "MSFT_US_EQ", "shortName": "Microsoft"},
@@ -94,6 +100,7 @@ def mock_client():
     client.get_dividends.return_value = MOCK_DIVIDENDS
     client.get_instruments.return_value = MOCK_INSTRUMENTS
     client.get_pies.return_value = MOCK_PIES
+    client.get_pie.return_value = MOCK_PIES[0]
     return client
 
 
@@ -316,6 +323,7 @@ async def test_coordinator_pie_slug_collision(hass, mock_client):
     from unittest.mock import MagicMock
 
     # Two pies that produce the same base slug
+    mock_client.get_pie.return_value = {"settings": {"name": "My Pie", "goal": 0.0}}
     mock_client.get_pies.return_value = [
         {
             "id": 1,
@@ -341,3 +349,52 @@ async def test_coordinator_pie_slug_collision(hass, mock_client):
 
     assert "my_pie" in coord.data.pies
     assert "my_pie_2" in coord.data.pies
+
+
+# --- Event hook tests ---
+
+async def test_no_events_fired_on_first_fetch(hass, mock_client):
+    from homeassistant.config_entries import ConfigEntry
+    from unittest.mock import MagicMock
+    from custom_components.trading212.const import (
+        EVENT_DIVIDEND_RECEIVED,
+        EVENT_PIE_CREATED,
+        EVENT_PIE_DELETED,
+        EVENT_POSITION_CLOSED,
+        EVENT_POSITION_OPENED,
+    )
+
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_no_events_first_fetch"
+    coord = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+
+    events = []
+    for event_type in [
+        EVENT_POSITION_OPENED,
+        EVENT_POSITION_CLOSED,
+        EVENT_PIE_CREATED,
+        EVENT_PIE_DELETED,
+        EVENT_DIVIDEND_RECEIVED,
+    ]:
+        hass.bus.async_listen(event_type, lambda e: events.append(e))
+
+    await coord.async_refresh()
+
+    assert events == [], f"Expected no events on first fetch, got: {[e.event_type for e in events]}"
+
+
+async def test_previous_state_populated_after_first_fetch(hass, mock_client):
+    from homeassistant.config_entries import ConfigEntry
+    from unittest.mock import MagicMock
+
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_prev_state_populated"
+    coord = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+    await coord.async_refresh()
+
+    assert "aapl_us_eq" in coord._previous_positions
+    assert "msft_us_eq" in coord._previous_positions
+    assert "growth_pie" in coord._previous_pies
+    assert coord._is_first_fetch is False
+    assert "div_001" in coord._seen_dividend_ids
+    assert "div_002" in coord._seen_dividend_ids
