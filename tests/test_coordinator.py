@@ -543,3 +543,67 @@ async def test_no_pie_events_when_pies_unchanged(hass, mock_client):
     await coord.async_refresh()
 
     assert events == []
+
+
+async def test_dividend_received_event_fires_for_new_dividend(hass, mock_client):
+    from homeassistant.config_entries import ConfigEntry
+    from unittest.mock import MagicMock
+    from custom_components.trading212.const import EVENT_DIVIDEND_RECEIVED
+
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_div_received"
+    coord = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+    await coord.async_refresh()  # seeds div_001 and div_002 — no events
+
+    events = []
+    hass.bus.async_listen(EVENT_DIVIDEND_RECEIVED, lambda e: events.append(e))
+
+    mock_client.get_dividends.return_value = {
+        "items": [
+            {"id": "div_001", "ticker": "AAPL_US_EQ", "amount": 5.0, "paidOn": "2026-06-20"},
+            {"id": "div_002", "ticker": "MSFT_US_EQ", "amount": 3.0, "paidOn": "2026-06-15"},
+            {"id": "div_003", "ticker": "AAPL_US_EQ", "amount": 6.5, "paidOn": "2026-06-27"},
+        ],
+        "nextPageKey": None,
+    }
+    await coord.async_refresh()
+
+    assert len(events) == 1
+    assert events[0].data["ticker"] == "AAPL_US_EQ"
+    assert events[0].data["name"] == "Apple"
+    assert events[0].data["amount"] == pytest.approx(6.5)
+    assert events[0].data["paid_on"] == "2026-06-27"
+    assert events[0].data["currency"] == "GBP"
+
+
+async def test_dividend_event_does_not_fire_twice_for_same_id(hass, mock_client):
+    from homeassistant.config_entries import ConfigEntry
+    from unittest.mock import MagicMock
+    from custom_components.trading212.const import EVENT_DIVIDEND_RECEIVED
+
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_div_no_repeat"
+    coord = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+    await coord.async_refresh()  # seeds existing dividends
+
+    events = []
+    hass.bus.async_listen(EVENT_DIVIDEND_RECEIVED, lambda e: events.append(e))
+
+    # Same dividend list — no new IDs
+    await coord.async_refresh()
+    await coord.async_refresh()
+
+    assert events == []
+
+
+async def test_dividend_ids_persisted_after_first_fetch(hass, mock_client):
+    from homeassistant.config_entries import ConfigEntry
+    from unittest.mock import MagicMock
+
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_div_persist"
+    coord = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+    await coord.async_refresh()
+
+    assert "div_001" in coord._seen_dividend_ids
+    assert "div_002" in coord._seen_dividend_ids

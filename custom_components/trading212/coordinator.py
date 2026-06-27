@@ -332,6 +332,21 @@ class Trading212Coordinator(DataUpdateCoordinator[CoordinatorData]):
                     "name": pie.name,
                 })
 
+            # Dividend events
+            for div in div_items:
+                div_id = str(div.get("id", ""))
+                if div_id and div_id not in self._seen_dividend_ids:
+                    ticker = div.get("ticker", "")
+                    self.hass.bus.async_fire(EVENT_DIVIDEND_RECEIVED, {
+                        "ticker": ticker,
+                        "name": self._instruments.get(ticker, ticker),
+                        "amount": float(div.get("amount", 0)),
+                        "currency": summary.get("currency", ""),
+                        "paid_on": div.get("paidOn", ""),
+                    })
+                    self._seen_dividend_ids.add(div_id)
+            await self._seen_dividends_store.async_save(list(self._seen_dividend_ids))
+
         self._previous_positions = positions
         self._previous_pies = pies
         # --- end automation event hooks ---
