@@ -43,20 +43,26 @@ MOCK_SUMMARY = {
 
 MOCK_POSITIONS = [
     {
-        "ticker": "AAPL_US_EQ",
+        "instrument": {"ticker": "AAPL_US_EQ", "name": "Apple"},
         "quantity": 10.0,
-        "averagePrice": 150.0,
+        "averagePricePaid": 150.0,
         "currentPrice": 175.0,
-        "ppl": 250.0,
-        "fxPpl": 0.0,
+        "walletImpact": {
+            "unrealizedProfitLoss": 250.0,
+            "currentValue": 1750.0,
+            "totalCost": 1500.0,
+        },
     },
     {
-        "ticker": "MSFT_US_EQ",
+        "instrument": {"ticker": "MSFT_US_EQ", "name": "Microsoft"},
         "quantity": 5.0,
-        "averagePrice": 300.0,
+        "averagePricePaid": 300.0,
         "currentPrice": 280.0,
-        "ppl": -100.0,
-        "fxPpl": 0.0,
+        "walletImpact": {
+            "unrealizedProfitLoss": -100.0,
+            "currentValue": 1400.0,
+            "totalCost": 1500.0,
+        },
     },
 ]
 

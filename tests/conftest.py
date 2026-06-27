@@ -1,4 +1,6 @@
 """Test configuration for Trading212 integration."""
+import gc
+import time
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
@@ -17,6 +19,22 @@ from custom_components.trading212.coordinator import (
     Pie,
     Position,
 )
+
+
+@pytest.fixture(autouse=True, scope="session")
+def pre_start_pycares_thread():
+    # aiohttp uses pycares for async DNS. When a pycares Channel is destroyed it
+    # starts a singleton daemon thread (_run_safe_shutdown_loop). If this thread
+    # first appears during a test's teardown, verify_cleanup flags it as a new
+    # lingering thread. Pre-start it once before any test captures threads_before.
+    try:
+        import pycares
+        ch = pycares.Channel(sock_state_cb=lambda *a, **kw: None)
+        del ch
+        gc.collect()
+        time.sleep(0.05)
+    except ImportError:
+        pass
 
 
 @pytest.fixture(autouse=True)

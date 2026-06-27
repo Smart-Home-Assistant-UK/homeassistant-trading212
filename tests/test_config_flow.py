@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from homeassistant import config_entries
@@ -14,6 +14,7 @@ from custom_components.trading212.const import (
 
 VALID_INPUT = {
     "api_key": "test_key",
+    "api_secret": "test_secret",
     CONF_ENVIRONMENT: ENVIRONMENT_DEMO,
     CONF_POLL_INTERVAL: 60,
 }
@@ -23,10 +24,16 @@ VALID_INPUT = {
 def mock_api_validation():
     with patch(
         "custom_components.trading212.config_flow.Trading212Client"
-    ) as mock_cls:
+    ) as mock_cls, patch(
+        "custom_components.trading212.Trading212Coordinator"
+    ) as mock_coord_cls:
         mock_client = AsyncMock()
         mock_client.get_account_summary.return_value = {"id": 12345, "currency": "GBP", "totalValue": 1000.0}
         mock_cls.return_value = mock_client
+
+        mock_coord = MagicMock()
+        mock_coord.async_config_entry_first_refresh = AsyncMock(return_value=None)
+        mock_coord_cls.return_value = mock_coord
         yield mock_cls
 
 
