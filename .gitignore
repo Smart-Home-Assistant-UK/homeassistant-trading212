@@ -2,3 +2,8 @@ __pycache__/
 *.pyc
 .idea/
 local/
+.venv/
+.superpowers/
+
+# Home Assistant instance lives one level up — never track it
+../homeassistant/
