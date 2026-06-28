@@ -201,3 +201,15 @@ async def test_pie_value_sensor_currency(hass, setup_integration):
 async def test_pie_friendly_name_uses_pie_name(hass, setup_integration):
     state = hass.states.get("sensor.trading212_growth_pie_value")
     assert "Growth Pie" in state.attributes.get("friendly_name", "")
+
+
+async def test_pie_value_sensor_exposes_tickers(hass, setup_integration):
+    state = hass.states.get("sensor.trading212_growth_pie_value")
+    assert state.attributes.get("tickers") == ["AAPL_US_EQ", "MSFT_US_EQ"]
+
+
+async def test_pie_non_value_sensor_has_no_tickers(hass, setup_integration):
+    # tickers attribute must only appear on the value sensor, not every pie sensor
+    for key in ("invested", "pnl", "pnl_percent", "cash", "progress", "goal"):
+        state = hass.states.get(f"sensor.trading212_growth_pie_{key}")
+        assert "tickers" not in (state.attributes if state else {}), key
