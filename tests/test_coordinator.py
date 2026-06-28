@@ -641,6 +641,92 @@ async def test_dividend_ids_persisted_after_first_fetch(hass, mock_client):
     assert "div_002" in coord._seen_dividend_ids
 
 
+async def test_rate_limit_returns_stale_data_and_backs_off(hass, mock_client):
+    from homeassistant.config_entries import ConfigEntry
+    from unittest.mock import MagicMock
+    from custom_components.trading212.api import RateLimitExceededError
+
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_rate_limit_backoff"
+    coord = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+    await coord.async_refresh()  # successful first fetch
+
+    stale_data = coord.data
+    normal_interval = coord.update_interval
+
+    # Next poll is rate-limited
+    mock_client.get_account_summary.side_effect = RateLimitExceededError("rate limited")
+    await coord.async_refresh()
+
+    # Stale data is returned — sensors stay available
+    assert coord.data is stale_data
+    assert coord.last_update_success is True
+    # Interval has been backed off
+    assert coord.update_interval > normal_interval
+
+
+async def test_rate_limit_backoff_respects_maximum(hass, mock_client):
+    from homeassistant.config_entries import ConfigEntry
+    from unittest.mock import MagicMock
+    from custom_components.trading212.api import RateLimitExceededError
+    from custom_components.trading212.coordinator import _BACKOFF_MAX
+    from datetime import timedelta
+
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_rate_limit_max"
+    coord = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+    await coord.async_refresh()
+
+    # Trigger backoff many times
+    mock_client.get_account_summary.side_effect = RateLimitExceededError("rate limited")
+    for _ in range(10):
+        await coord.async_refresh()
+
+    assert coord.update_interval <= _BACKOFF_MAX
+
+
+async def test_poll_interval_restored_after_rate_limit_clears(hass, mock_client):
+    from homeassistant.config_entries import ConfigEntry
+    from unittest.mock import MagicMock
+    from custom_components.trading212.api import RateLimitExceededError
+
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_rate_limit_restore"
+    coord = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+    await coord.async_refresh()
+
+    # Rate limit
+    mock_client.get_account_summary.side_effect = RateLimitExceededError("rate limited")
+    await coord.async_refresh()
+    assert coord.update_interval.total_seconds() > 60
+
+    # Clears
+    mock_client.get_account_summary.side_effect = None
+    await coord.async_refresh()
+    assert coord.update_interval.total_seconds() == 60
+
+
+async def test_concurrent_update_skipped(hass, mock_client):
+    from homeassistant.config_entries import ConfigEntry
+    from unittest.mock import MagicMock
+    import asyncio
+
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_concurrent_skip"
+    coord = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+    await coord.async_refresh()  # establishes self.data
+
+    call_count_before = mock_client.get_account_summary.call_count
+
+    # Simulate a second call arriving while the lock is held
+    async with coord._update_lock:
+        result = await coord._async_update_data()
+
+    # Should have returned stale data without making any API calls
+    assert result is coord.data
+    assert mock_client.get_account_summary.call_count == call_count_before
+
+
 async def test_dividend_not_refired_after_restart(hass, mock_client):
     from homeassistant.config_entries import ConfigEntry
     from unittest.mock import MagicMock

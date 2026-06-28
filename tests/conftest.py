@@ -2,7 +2,7 @@
 import gc
 import time
 from datetime import datetime, timezone
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -41,6 +41,13 @@ def pre_start_pycares_thread():
 def auto_enable_custom_integrations(enable_custom_integrations):
     """Enable custom integrations for all tests."""
     return enable_custom_integrations
+
+
+@pytest.fixture(autouse=True)
+def no_sleep():
+    """Patch asyncio.sleep so pie-detail delays don't slow down the test suite."""
+    with patch("custom_components.trading212.coordinator.asyncio.sleep", return_value=None):
+        yield
 
 
 @pytest.fixture

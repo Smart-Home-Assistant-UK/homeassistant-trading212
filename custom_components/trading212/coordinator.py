@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 from dataclasses import dataclass, field
@@ -31,6 +32,10 @@ if TYPE_CHECKING:
     from .api import Trading212Client
 
 _LOGGER = logging.getLogger(__name__)
+
+_BACKOFF_MIN = timedelta(seconds=30)
+_BACKOFF_MAX = timedelta(minutes=5)
+_BACKOFF_FACTOR = 2
 
 
 def ticker_to_slug(ticker: str) -> str:
@@ -115,6 +120,8 @@ class Trading212Coordinator(DataUpdateCoordinator[CoordinatorData]):
         )
         self._client = client
         self.config_entry = config_entry
+        self._base_poll_interval = poll_interval
+        self._update_lock = asyncio.Lock()
         self._instruments: dict[str, str] = {}
         self._pie_details: dict[int, dict] = {}
         self._daily_baseline: dict[str, float] = {}
@@ -127,6 +134,16 @@ class Trading212Coordinator(DataUpdateCoordinator[CoordinatorData]):
         self._is_first_fetch: bool = True
 
     async def _async_update_data(self) -> CoordinatorData:
+        if self._update_lock.locked():
+            _LOGGER.debug("Previous Trading212 update still running; skipping this cycle")
+            if self.data is not None:
+                return self.data
+            raise UpdateFailed("Update already in progress")
+
+        async with self._update_lock:
+            return await self._fetch_data()
+
+    async def _fetch_data(self) -> CoordinatorData:
         if not self._instruments:
             try:
                 raw = await self._client.get_instruments()
@@ -145,11 +162,21 @@ class Trading212Coordinator(DataUpdateCoordinator[CoordinatorData]):
         except InvalidAPIKeyError as err:
             raise UpdateFailed(f"Trading212 authentication failed: {err}") from err
         except RateLimitExceededError as err:
+            self._apply_rate_limit_backoff()
+            _LOGGER.warning(
+                "Rate limited by Trading212; backing off poll interval to %s",
+                self.update_interval,
+            )
+            if self.data is not None:
+                return self.data
             raise UpdateFailed(f"Trading212 rate limit exceeded: {err}") from err
         except APIConnectionError as err:
             raise UpdateFailed(f"Cannot connect to Trading212: {err}") from err
         except APIResponseError as err:
             raise UpdateFailed(f"Trading212 API error: {err}") from err
+
+        # Successful poll — restore normal interval if we were backed off.
+        self._restore_poll_interval()
 
         # Load persisted baseline on first call
         if self._baseline_date is None:
@@ -193,11 +220,12 @@ class Trading212Coordinator(DataUpdateCoordinator[CoordinatorData]):
                 pnl_percent=pnl_percent,
             )
 
-        # Parse pies — fetch individual details once per pie to get the name
+        # Parse pies — fetch individual details once per pie (name, goal, tickers)
         pies: dict[str, Pie] = {}
         for raw in pies_raw if isinstance(pies_raw, list) else []:
             pie_id = int(raw.get("id", 0))
             if pie_id not in self._pie_details:
+                await asyncio.sleep(5)
                 try:
                     detail = await self._client.get_pie(pie_id)
                     settings = detail.get("settings", {})
@@ -211,6 +239,7 @@ class Trading212Coordinator(DataUpdateCoordinator[CoordinatorData]):
                         ],
                     }
                 except RateLimitExceededError:
+                    self._apply_rate_limit_backoff()
                     _LOGGER.debug("Rate limited fetching pie %s details; will retry", pie_id)
                 except Exception as err:
                     _LOGGER.warning(
@@ -380,3 +409,18 @@ class Trading212Coordinator(DataUpdateCoordinator[CoordinatorData]):
             biggest_daily_loss=biggest_loss,
             last_updated=dt_util.now(),
         )
+
+    def _apply_rate_limit_backoff(self) -> None:
+        current = self.update_interval or timedelta(seconds=self._base_poll_interval)
+        backed_off = min(current * _BACKOFF_FACTOR, _BACKOFF_MAX)
+        backed_off = max(backed_off, _BACKOFF_MIN)
+        self.update_interval = backed_off
+
+    def _restore_poll_interval(self) -> None:
+        base = timedelta(seconds=self._base_poll_interval)
+        if self.update_interval != base:
+            self.update_interval = base
+            _LOGGER.info(
+                "Trading212 rate limit resolved; poll interval restored to %ds",
+                self._base_poll_interval,
+            )

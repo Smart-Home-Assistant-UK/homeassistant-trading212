@@ -186,7 +186,7 @@ Full dashboard YAML: [`docs/dashboards/mushroom.yaml`](docs/dashboards/mushroom.
 ## Notes
 
 - **Read-only** — this integration cannot place or cancel orders
-- **Poll interval** — minimum 30 s, default 60 s; be mindful of Trading212's rate limits
+- **Poll interval** — minimum 30 s, default 60 s; **60 s is strongly recommended**. The tightest Trading212 API limit is the pies endpoint at 1 request per 30 s — polling at 30 s will hit that limit on every cycle. Each pie also requires an individual API call on first discovery (spaced 5 s apart), so initial startup is slower with larger portfolios. If a rate limit is hit mid-poll, the integration backs off automatically (30 s → up to 5 minutes) and restores the original interval once the limit clears; sensors remain available showing the last known values during this time. If a poll takes longer than the configured interval, the next poll is skipped rather than running two in parallel
 - **Daily P&L** — calculated by comparing current values to a snapshot taken at the start of each calendar day; resets at midnight local time
 
 ---
