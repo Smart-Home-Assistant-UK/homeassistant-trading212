@@ -96,6 +96,7 @@ def mock_coordinator_data():
             dividends_gained=10.0,
             dividends_in_cash=5.0,
             dividends_reinvested=5.0,
+            tickers=["AAPL_US_EQ", "MSFT_US_EQ"],
         )
     }
     return CoordinatorData(

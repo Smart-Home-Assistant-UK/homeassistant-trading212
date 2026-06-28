@@ -96,6 +96,14 @@ MOCK_PIES = [
     }
 ]
 
+MOCK_PIE_DETAIL = {
+    "settings": {"goal": 1000.0, "id": 1001, "name": "Growth Pie"},
+    "instruments": [
+        {"ticker": "AAPL_US_EQ", "ownedQuantity": 1.0, "currentShare": 0.6, "expectedShare": 0.6, "issues": []},
+        {"ticker": "MSFT_US_EQ", "ownedQuantity": 0.5, "currentShare": 0.4, "expectedShare": 0.4, "issues": []},
+    ],
+}
+
 
 @pytest.fixture
 def mock_client():
@@ -106,7 +114,7 @@ def mock_client():
     client.get_dividends.return_value = MOCK_DIVIDENDS
     client.get_instruments.return_value = MOCK_INSTRUMENTS
     client.get_pies.return_value = MOCK_PIES
-    client.get_pie.return_value = MOCK_PIES[0]
+    client.get_pie.return_value = MOCK_PIE_DETAIL
     return client
 
 
@@ -322,6 +330,23 @@ async def test_coordinator_pie_dividends_reinvested(coordinator):
 async def test_coordinator_pie_name(coordinator):
     pie = coordinator.data.pies["growth_pie"]
     assert pie.name == "Growth Pie"
+
+
+async def test_coordinator_pie_tickers_populated(coordinator):
+    pie = coordinator.data.pies["growth_pie"]
+    assert pie.tickers == ["AAPL_US_EQ", "MSFT_US_EQ"]
+
+
+async def test_coordinator_pie_tickers_empty_when_no_instruments(hass, mock_client):
+    from homeassistant.config_entries import ConfigEntry
+    from unittest.mock import MagicMock
+
+    mock_client.get_pie.return_value = {"settings": {"name": "Growth Pie", "goal": 0.0}}
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_entry"
+    coord = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+    await coord.async_refresh()
+    assert coord.data.pies["growth_pie"].tickers == []
 
 
 async def test_coordinator_pie_slug_collision(hass, mock_client):

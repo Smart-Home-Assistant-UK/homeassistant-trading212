@@ -424,5 +424,11 @@ class Trading212PieSensor(CoordinatorEntity[Trading212Coordinator], SensorEntity
         return None
 
     @property
+    def extra_state_attributes(self) -> dict | None:
+        if self._attr_key == "value" and self._pie is not None:
+            return {"tickers": self._pie.tickers}
+        return None
+
+    @property
     def available(self) -> bool:
         return self.coordinator.last_update_success and self._pie is not None

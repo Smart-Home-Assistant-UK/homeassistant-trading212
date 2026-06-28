@@ -106,6 +106,8 @@ Ten sensors per pie, where the slug is the pie name lowercased with spaces and s
 | `sensor.trading212_<slug>_dividends_in_cash` | Dividends held as cash |
 | `sensor.trading212_<slug>_dividends_reinvested` | Dividends reinvested |
 
+The **value** sensor for each pie also exposes a `tickers` state attribute — a list of the instrument tickers held within that pie (e.g. `["VWRL_EQ", "SMGBL_EQ"]`). This is used by the companion lovelace card to filter the asset allocation treemap to a single pie.
+
 ---
 
 ## Dashboard Examples
@@ -142,6 +144,12 @@ Full dashboard YAML: [`docs/dashboards/investment-card.yaml`](docs/dashboards/in
 | Pies | Pies expanded |
 |------|---------------|
 | ![Pies card](docs/screenshots/default/pies-card.png) | ![Pies expanded](docs/screenshots/default/pies-card-expanded.png) |
+
+#### Asset allocation
+
+Three modes side by side — all positions, positions filtered to one pie, and pies overview:
+
+![Asset allocation card](docs/screenshots/default/allocation-card.png)
 
 #### iOS dark theme
 

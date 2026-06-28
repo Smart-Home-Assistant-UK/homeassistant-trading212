@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING
 
@@ -72,6 +72,7 @@ class Pie:
     dividends_gained: float
     dividends_in_cash: float
     dividends_reinvested: float
+    tickers: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -203,6 +204,11 @@ class Trading212Coordinator(DataUpdateCoordinator[CoordinatorData]):
                     self._pie_details[pie_id] = {
                         "name": settings.get("name") or f"Pie {pie_id}",
                         "goal": float(settings.get("goal") or 0),
+                        "tickers": [
+                            i["ticker"]
+                            for i in detail.get("instruments", [])
+                            if i.get("ticker")
+                        ],
                     }
                 except RateLimitExceededError:
                     _LOGGER.debug("Rate limited fetching pie %s details; will retry", pie_id)
@@ -210,7 +216,7 @@ class Trading212Coordinator(DataUpdateCoordinator[CoordinatorData]):
                     _LOGGER.warning(
                         "Failed to fetch details for pie %s: %s; will retry next poll", pie_id, err
                     )
-            pie_info = self._pie_details.get(pie_id, {"name": f"Pie {pie_id}", "goal": 0.0})
+            pie_info = self._pie_details.get(pie_id, {"name": f"Pie {pie_id}", "goal": 0.0, "tickers": []})
             name = pie_info["name"]
             slug = ticker_to_slug(name)
             if slug in pies:
@@ -230,6 +236,7 @@ class Trading212Coordinator(DataUpdateCoordinator[CoordinatorData]):
                 dividends_gained=float(dividend_details.get("gained", 0)),
                 dividends_in_cash=float(dividend_details.get("inCash", 0)),
                 dividends_reinvested=float(dividend_details.get("reinvested", 0)),
+                tickers=pie_info.get("tickers", []),
             )
 
         # Seed baseline for new positions
