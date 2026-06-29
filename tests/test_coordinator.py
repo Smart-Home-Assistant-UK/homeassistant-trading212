@@ -754,7 +754,7 @@ async def test_dividend_not_refired_after_restart(hass, mock_client):
 from custom_components.trading212.coordinator import get_enabled_sensor_list
 from custom_components.trading212.const import CONF_POSITION_SENSORS, DEFAULT_POSITION_SENSORS, ALL_POSITION_SENSORS
 from pytest_homeassistant_custom_component.common import MockConfigEntry
-from custom_components.trading212.const import DOMAIN, CONF_ENVIRONMENT, CONF_POLL_INTERVAL, ENVIRONMENT_DEMO
+from custom_components.trading212.const import DOMAIN
 
 
 def _make_entry(data, options=None):
