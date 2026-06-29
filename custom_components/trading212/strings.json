@@ -56,7 +56,15 @@
         },
         "sections": {
           "sensor_selection": {
-            "name": "Sensor selection"
+            "name": "Sensor selection",
+            "data": {
+              "position_sensors": "Position sensors",
+              "pie_sensors": "Pie sensors"
+            },
+            "data_description": {
+              "position_sensors": "Sensors marked ⭐ are required for the lovelace card to discover and display positions. P&L and P&L % appear in the card's main view; Average Price and Current Price only in the expanded detail panel.",
+              "pie_sensors": "Sensors marked ⭐ are required for the lovelace card to discover and display pies. P&L % appears in the card's main view; all others only in the expanded detail panel. Note: P&L is not shown by the lovelace card."
+            }
           }
         }
       }
