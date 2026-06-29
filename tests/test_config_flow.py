@@ -6,6 +6,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.trading212.const import (
     CONF_ENVIRONMENT,
+    CONF_LABEL,
     CONF_POLL_INTERVAL,
     DOMAIN,
     ENVIRONMENT_DEMO,
@@ -17,6 +18,7 @@ VALID_INPUT = {
     "api_secret": "test_secret",
     CONF_ENVIRONMENT: ENVIRONMENT_DEMO,
     CONF_POLL_INTERVAL: 60,
+    CONF_LABEL: "",
 }
 
 

@@ -8,6 +8,7 @@ from .api import InvalidAPIKeyError, Trading212Client, APIConnectionError
 from .const import (
     CONF_API_SECRET,
     CONF_ENVIRONMENT,
+    CONF_LABEL,
     CONF_POLL_INTERVAL,
     DEFAULT_POLL_INTERVAL,
     DEMO_BASE_URL,
@@ -20,6 +21,7 @@ from .const import (
 
 USER_SCHEMA = vol.Schema(
     {
+        vol.Optional(CONF_LABEL, default=""): str,
         vol.Required("api_key"): str,
         vol.Required(CONF_API_SECRET): str,
         vol.Required(CONF_ENVIRONMENT, default=ENVIRONMENT_LIVE): vol.In(
@@ -70,9 +72,9 @@ class Trading212ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 await self.async_set_unique_id(unique_id)
                 self._abort_if_unique_id_configured()
                 env = user_input[CONF_ENVIRONMENT].title()
-                return self.async_create_entry(
-                    title=f"Trading212 ({env})", data=user_input
-                )
+                label = user_input.get(CONF_LABEL, "").strip()
+                title = f"Trading212 – {label} ({env})" if label else f"Trading212 ({env})"
+                return self.async_create_entry(title=title, data=user_input)
 
         return self.async_show_form(
             step_id="user", data_schema=USER_SCHEMA, errors=errors
@@ -97,12 +99,14 @@ class Trading212OptionsFlow(config_entries.OptionsFlow):
 
         current_interval = self._config_entry.data.get(CONF_POLL_INTERVAL, DEFAULT_POLL_INTERVAL)
         current_env = self._config_entry.data.get(CONF_ENVIRONMENT, ENVIRONMENT_LIVE)
+        current_label = self._config_entry.data.get(CONF_LABEL, "")
         schema = vol.Schema(
             {
                 vol.Required(CONF_ENVIRONMENT, default=current_env): vol.In(
                     [ENVIRONMENT_LIVE, ENVIRONMENT_DEMO]
                 ),
                 vol.Required(CONF_POLL_INTERVAL, default=current_interval): int,
+                vol.Optional(CONF_LABEL, default=current_label): str,
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema, errors=errors)

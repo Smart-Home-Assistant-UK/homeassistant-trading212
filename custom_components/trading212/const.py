@@ -10,6 +10,7 @@ ENVIRONMENT_DEMO = "demo"
 CONF_ENVIRONMENT = "environment"
 CONF_POLL_INTERVAL = "poll_interval"
 CONF_API_SECRET = "api_secret"
+CONF_LABEL = "label"
 
 DEFAULT_POLL_INTERVAL = 60
 MIN_POLL_INTERVAL = 30

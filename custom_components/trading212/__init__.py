@@ -19,7 +19,6 @@ from .const import (
 from .coordinator import Trading212Coordinator
 
 PLATFORMS = ["sensor"]
-_SESSION_KEY = f"{DOMAIN}_session"
 
 
 async def _async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -47,7 +46,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await coordinator.async_config_entry_first_refresh()
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
-    hass.data[DOMAIN][_SESSION_KEY] = session
+    hass.data[DOMAIN][f"{entry.entry_id}_session"] = session
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_reload_entry))
@@ -58,7 +57,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id)
-        session: aiohttp.ClientSession | None = hass.data[DOMAIN].pop(_SESSION_KEY, None)
+        session: aiohttp.ClientSession | None = hass.data[DOMAIN].pop(
+            f"{entry.entry_id}_session", None
+        )
         if session:
             await session.close()
     return unload_ok
