@@ -82,6 +82,26 @@ async def test_config_flow_sets_title_with_environment(hass):
     assert "Demo" in result["title"] or "demo" in result["title"].lower()
 
 
+async def test_config_flow_title_without_label(hass):
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {**VALID_INPUT, CONF_LABEL: ""}
+    )
+    assert result["title"] == "Trading212 (Demo)"
+
+
+async def test_config_flow_title_with_label(hass):
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {**VALID_INPUT, CONF_LABEL: "John"}
+    )
+    assert result["title"] == "Trading212 – John (Demo)"
+
+
 async def test_config_flow_invalid_auth_shows_error(hass):
     from custom_components.trading212.api import InvalidAPIKeyError
 
