@@ -11,6 +11,7 @@ from homeassistant.helpers.selector import (
 )
 
 from .api import InvalidAPIKeyError, Trading212Client, APIConnectionError
+from .coordinator import get_enabled_sensor_list
 from .const import (
     ALL_PIE_SENSORS,
     ALL_POSITION_SENSORS,
@@ -182,8 +183,14 @@ class Trading212OptionsFlow(config_entries.OptionsFlow):
             else:
                 # Unwrap the collapsible section into flat storage
                 sensor_section = user_input.pop("sensor_selection", None) or {}
-                user_input[CONF_POSITION_SENSORS] = sensor_section.get(CONF_POSITION_SENSORS, DEFAULT_POSITION_SENSORS)
-                user_input[CONF_PIE_SENSORS] = sensor_section.get(CONF_PIE_SENSORS, DEFAULT_PIE_SENSORS)
+                user_input[CONF_POSITION_SENSORS] = sensor_section.get(
+                    CONF_POSITION_SENSORS,
+                    get_enabled_sensor_list(self._config_entry, CONF_POSITION_SENSORS, DEFAULT_POSITION_SENSORS),
+                )
+                user_input[CONF_PIE_SENSORS] = sensor_section.get(
+                    CONF_PIE_SENSORS,
+                    get_enabled_sensor_list(self._config_entry, CONF_PIE_SENSORS, DEFAULT_PIE_SENSORS),
+                )
                 return self.async_create_entry(title="", data=user_input)
 
         combined = {**self._config_entry.data, **self._config_entry.options}

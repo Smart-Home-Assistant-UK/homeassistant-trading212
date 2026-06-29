@@ -273,3 +273,22 @@ async def test_options_flow_sensor_selection_defaults_when_omitted(hass):
     assert result["type"] == "create_entry"
     assert result["data"][CONF_POSITION_SENSORS] == DEFAULT_POSITION_SENSORS
     assert result["data"][CONF_PIE_SENSORS] == DEFAULT_PIE_SENSORS
+
+
+async def test_options_flow_sensor_selection_preserved_when_section_omitted(hass):
+    """Submitting options without sensor_selection must preserve the saved selection."""
+    custom_data = {
+        **VALID_INPUT,
+        CONF_POSITION_SENSORS: ["value", "pnl_percent"],
+        CONF_PIE_SENSORS: ["value"],
+    }
+    entry = MockConfigEntry(domain=DOMAIN, data=custom_data, entry_id="test_preserve")
+    entry.add_to_hass(hass)
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {CONF_POLL_INTERVAL: 90, CONF_ENVIRONMENT: ENVIRONMENT_DEMO},
+    )
+    assert result["type"] == "create_entry"
+    assert result["data"][CONF_POSITION_SENSORS] == ["value", "pnl_percent"]
+    assert result["data"][CONF_PIE_SENSORS] == ["value"]

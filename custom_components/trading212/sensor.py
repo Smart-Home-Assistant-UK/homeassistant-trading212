@@ -25,11 +25,9 @@ from .const import (
     CONF_LABEL,
     CONF_PIE_SENSORS,
     CONF_POSITION_SENSORS,
-    DEFAULT_PIE_SENSORS,
-    DEFAULT_POSITION_SENSORS,
     DOMAIN,
 )
-from .coordinator import CoordinatorData, Pie, Position, Trading212Coordinator
+from .coordinator import CoordinatorData, Pie, Position, Trading212Coordinator, get_enabled_sensor_list
 
 
 def _label_slug(coordinator: Trading212Coordinator) -> str:
@@ -227,17 +225,14 @@ PIE_ATTRS: tuple[tuple[str, str, SensorDeviceClass | None, str | None], ...] = (
 def _enabled_position_attrs(
     coordinator: Trading212Coordinator,
 ) -> tuple[tuple[str, str, SensorDeviceClass | None, str | None], ...]:
-    combined = {**coordinator.config_entry.data, **coordinator.config_entry.options}
-    # Key absent means pre-feature install — all sensors were created, preserve that
-    enabled = set(combined[CONF_POSITION_SENSORS] if CONF_POSITION_SENSORS in combined else ALL_POSITION_SENSORS)
+    enabled = set(get_enabled_sensor_list(coordinator.config_entry, CONF_POSITION_SENSORS, ALL_POSITION_SENSORS))
     return tuple(a for a in POSITION_ATTRS if a[0] in enabled)
 
 
 def _enabled_pie_attrs(
     coordinator: Trading212Coordinator,
 ) -> tuple[tuple[str, str, SensorDeviceClass | None, str | None], ...]:
-    combined = {**coordinator.config_entry.data, **coordinator.config_entry.options}
-    enabled = set(combined[CONF_PIE_SENSORS] if CONF_PIE_SENSORS in combined else ALL_PIE_SENSORS)
+    enabled = set(get_enabled_sensor_list(coordinator.config_entry, CONF_PIE_SENSORS, ALL_PIE_SENSORS))
     return tuple(a for a in PIE_ATTRS if a[0] in enabled)
 
 
