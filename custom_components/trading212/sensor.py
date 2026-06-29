@@ -33,7 +33,8 @@ from .coordinator import CoordinatorData, Pie, Position, Trading212Coordinator
 
 
 def _label_slug(coordinator: Trading212Coordinator) -> str:
-    label = coordinator.config_entry.data.get(CONF_LABEL, "").strip()
+    combined = {**coordinator.config_entry.data, **coordinator.config_entry.options}
+    label = combined.get(CONF_LABEL, "").strip()
     if not label:
         return ""
     return re.sub(r"[^a-z0-9]+", "_", label.lower()).strip("_")

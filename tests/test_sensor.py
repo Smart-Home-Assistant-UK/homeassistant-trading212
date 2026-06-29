@@ -261,6 +261,34 @@ def test_label_slug_missing():
     assert _label_slug(coordinator) == ""
 
 
+async def test_label_slug_reads_from_options(hass, mock_coordinator_data):
+    """Label set in options (not data) must be reflected in entity slugs."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            "api_key": "test_key",
+            CONF_ENVIRONMENT: ENVIRONMENT_DEMO,
+            CONF_POLL_INTERVAL: 60,
+            CONF_LABEL: "isa",
+            CONF_POSITION_SENSORS: ALL_POSITION_SENSORS,
+            CONF_PIE_SENSORS: ALL_PIE_SENSORS,
+        },
+        options={CONF_LABEL: "sipp"},
+        entry_id="test_label_opt",
+    )
+    entry.add_to_hass(hass)
+    with patch(
+        "custom_components.trading212.coordinator.Trading212Coordinator._async_update_data",
+        return_value=mock_coordinator_data,
+    ), patch("custom_components.trading212.api.Trading212Client"):
+        await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    # entity slug should use the options label "sipp", not the data label "isa"
+    assert hass.states.get("sensor.trading212_sipp_total_value") is not None
+    assert hass.states.get("sensor.trading212_isa_total_value") is None
+
+
 def test_entity_id_with_slug():
     assert _entity_id("john", "total_value") == "trading212_john_total_value"
 
