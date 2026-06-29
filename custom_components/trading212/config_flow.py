@@ -30,8 +30,6 @@ from .const import (
     ENVIRONMENT_LIVE,
     LIVE_BASE_URL,
     MIN_POLL_INTERVAL,
-    OPTIONAL_PIE_SENSOR_OPTIONS,
-    OPTIONAL_POSITION_SENSOR_OPTIONS,
 )
 
 USER_SCHEMA = vol.Schema(
@@ -48,17 +46,19 @@ USER_SCHEMA = vol.Schema(
 
 _POSITION_SELECTOR = SelectSelector(
     SelectSelectorConfig(
-        options=[{"value": k, "label": v} for k, v in OPTIONAL_POSITION_SENSOR_OPTIONS.items()],
+        options=ALL_POSITION_SENSORS,
         multiple=True,
         mode=SelectSelectorMode.LIST,
+        translation_key="position_sensors",
     )
 )
 
 _PIE_SELECTOR = SelectSelector(
     SelectSelectorConfig(
-        options=[{"value": k, "label": v} for k, v in OPTIONAL_PIE_SENSOR_OPTIONS.items()],
+        options=ALL_PIE_SENSORS,
         multiple=True,
         mode=SelectSelectorMode.LIST,
+        translation_key="pie_sensors",
     )
 )
 
