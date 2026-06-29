@@ -16,8 +16,22 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+import re
+
+from .const import CONF_LABEL, DOMAIN
 from .coordinator import CoordinatorData, Pie, Position, Trading212Coordinator
+
+
+def _label_slug(coordinator: Trading212Coordinator) -> str:
+    label = coordinator.config_entry.data.get(CONF_LABEL, "").strip()
+    if not label:
+        return ""
+    return re.sub(r"[^a-z0-9]+", "_", label.lower()).strip("_")
+
+
+def _entity_id(label_slug: str, *parts: str) -> str:
+    prefix = f"trading212_{label_slug}" if label_slug else "trading212"
+    return "_".join([prefix, *parts])
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -259,7 +273,7 @@ class Trading212AccountSensor(CoordinatorEntity[Trading212Coordinator], SensorEn
         super().__init__(coordinator)
         self.entity_description = description
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_{description.key}"
-        self._attr_suggested_object_id = f"trading212_{description.key}"
+        self._attr_suggested_object_id = _entity_id(_label_slug(coordinator), description.key)
 
     @property
     def suggested_object_id(self) -> str | None:
@@ -309,7 +323,7 @@ class Trading212PositionSensor(CoordinatorEntity[Trading212Coordinator], SensorE
         )
         # Use a display slug that may differ from attr_key (e.g. avg_price vs average_price)
         entity_slug = _POSITION_ENTITY_SLUG.get(attr_key, attr_key)
-        self._attr_suggested_object_id = f"trading212_{ticker_slug}_{entity_slug}"
+        self._attr_suggested_object_id = _entity_id(_label_slug(coordinator), ticker_slug, entity_slug)
 
     @property
     def suggested_object_id(self) -> str | None:
@@ -378,7 +392,7 @@ class Trading212PieSensor(CoordinatorEntity[Trading212Coordinator], SensorEntity
             SensorStateClass.TOTAL if device_class == SensorDeviceClass.MONETARY
             else SensorStateClass.MEASUREMENT
         )
-        self._attr_suggested_object_id = f"trading212_{pie_slug}_{attr_key}"
+        self._attr_suggested_object_id = _entity_id(_label_slug(coordinator), pie_slug, attr_key)
 
     @property
     def suggested_object_id(self) -> str | None:

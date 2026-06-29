@@ -5,10 +5,14 @@
         "title": "Connect to Trading212",
         "description": "Enter your Trading212 API credentials. Generate them at Settings → API in the Trading212 app.",
         "data": {
+          "label": "Account Label (optional)",
           "api_key": "Key ID",
           "api_secret": "Secret",
           "environment": "Environment",
           "poll_interval": "Poll Interval (seconds)"
+        },
+        "data_description": {
+          "label": "A short name for this account (e.g. \"John\" or \"Jane\"). Required if you are adding more than one Trading212 integration."
         }
       }
     },

@@ -4,7 +4,8 @@ import pytest
 from homeassistant.components.sensor import SensorDeviceClass
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.trading212.const import DOMAIN
+from custom_components.trading212.const import CONF_ENVIRONMENT, CONF_LABEL, CONF_POLL_INTERVAL, DOMAIN, ENVIRONMENT_DEMO
+from custom_components.trading212.sensor import _entity_id, _label_slug
 
 
 @pytest.fixture
@@ -213,3 +214,96 @@ async def test_pie_non_value_sensor_has_no_tickers(hass, setup_integration):
     for key in ("invested", "pnl", "pnl_percent", "cash", "progress", "goal"):
         state = hass.states.get(f"sensor.trading212_growth_pie_{key}")
         assert "tickers" not in (state.attributes if state else {}), key
+
+
+# --- Label slug helper ---
+
+def test_label_slug_plain():
+    coordinator = MagicMock()
+    coordinator.config_entry.data = {CONF_LABEL: "John"}
+    assert _label_slug(coordinator) == "john"
+
+
+def test_label_slug_spaces():
+    coordinator = MagicMock()
+    coordinator.config_entry.data = {CONF_LABEL: "Aggressive but safe"}
+    assert _label_slug(coordinator) == "aggressive_but_safe"
+
+
+def test_label_slug_special_chars():
+    coordinator = MagicMock()
+    coordinator.config_entry.data = {CONF_LABEL: "U.S. Tech!"}
+    assert _label_slug(coordinator) == "u_s_tech"
+
+
+def test_label_slug_empty():
+    coordinator = MagicMock()
+    coordinator.config_entry.data = {CONF_LABEL: ""}
+    assert _label_slug(coordinator) == ""
+
+
+def test_label_slug_missing():
+    coordinator = MagicMock()
+    coordinator.config_entry.data = {}
+    assert _label_slug(coordinator) == ""
+
+
+def test_entity_id_with_slug():
+    assert _entity_id("john", "total_value") == "trading212_john_total_value"
+
+
+def test_entity_id_without_slug():
+    assert _entity_id("", "total_value") == "trading212_total_value"
+
+
+def test_entity_id_multiple_parts():
+    assert _entity_id("jane", "aapl_us_eq", "value") == "trading212_jane_aapl_us_eq_value"
+
+
+# --- Entity IDs with label ---
+
+@pytest.fixture
+async def setup_integration_with_label(hass, mock_coordinator_data):
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            "api_key": "test_key",
+            CONF_ENVIRONMENT: ENVIRONMENT_DEMO,
+            CONF_POLL_INTERVAL: 60,
+            CONF_LABEL: "John",
+        },
+        entry_id="test_entry_labelled",
+    )
+    entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.trading212.coordinator.Trading212Coordinator._async_update_data",
+        return_value=mock_coordinator_data,
+    ), patch("custom_components.trading212.api.Trading212Client"):
+        await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    return entry
+
+
+async def test_account_sensor_entity_id_prefixed_with_label(hass, setup_integration_with_label):
+    state = hass.states.get("sensor.trading212_john_total_value")
+    assert state is not None
+    assert float(state.state) == 6100.0
+
+
+async def test_position_sensor_entity_id_prefixed_with_label(hass, setup_integration_with_label):
+    state = hass.states.get("sensor.trading212_john_aapl_us_eq_value")
+    assert state is not None
+
+
+async def test_pie_sensor_entity_id_prefixed_with_label(hass, setup_integration_with_label):
+    state = hass.states.get("sensor.trading212_john_growth_pie_value")
+    assert state is not None
+
+
+async def test_unlabelled_entity_ids_unchanged(hass, setup_integration):
+    # Existing single-account users must not be affected
+    assert hass.states.get("sensor.trading212_total_value") is not None
+    assert hass.states.get("sensor.trading212_aapl_us_eq_value") is not None
+    assert hass.states.get("sensor.trading212_growth_pie_value") is not None
