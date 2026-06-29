@@ -746,3 +746,44 @@ async def test_dividend_not_refired_after_restart(hass, mock_client):
     await coord2.async_refresh()  # should load from Store, not fire anything
 
     assert events == [], f"Re-fired after restart: {[e.data for e in events]}"
+
+
+# ---------------------------------------------------------------------------
+# get_enabled_sensor_list
+# ---------------------------------------------------------------------------
+from custom_components.trading212.coordinator import get_enabled_sensor_list
+from custom_components.trading212.const import CONF_POSITION_SENSORS, DEFAULT_POSITION_SENSORS, ALL_POSITION_SENSORS
+from pytest_homeassistant_custom_component.common import MockConfigEntry
+from custom_components.trading212.const import DOMAIN, CONF_ENVIRONMENT, CONF_POLL_INTERVAL, ENVIRONMENT_DEMO
+
+
+def _make_entry(data, options=None):
+    return MockConfigEntry(
+        domain=DOMAIN,
+        data=data,
+        options=options or {},
+        entry_id="test_helper",
+    )
+
+
+def test_get_enabled_sensor_list_reads_data():
+    entry = _make_entry({CONF_POSITION_SENSORS: ["value", "pnl"]})
+    assert get_enabled_sensor_list(entry, CONF_POSITION_SENSORS, DEFAULT_POSITION_SENSORS) == ["value", "pnl"]
+
+
+def test_get_enabled_sensor_list_options_override_data():
+    entry = _make_entry(
+        data={CONF_POSITION_SENSORS: ["value"]},
+        options={CONF_POSITION_SENSORS: ["value", "pnl_percent"]},
+    )
+    assert get_enabled_sensor_list(entry, CONF_POSITION_SENSORS, DEFAULT_POSITION_SENSORS) == ["value", "pnl_percent"]
+
+
+def test_get_enabled_sensor_list_falls_back_when_absent():
+    entry = _make_entry(data={})
+    assert get_enabled_sensor_list(entry, CONF_POSITION_SENSORS, DEFAULT_POSITION_SENSORS) == DEFAULT_POSITION_SENSORS
+
+
+def test_get_enabled_sensor_list_falls_back_to_all_for_legacy():
+    entry = _make_entry(data={})
+    assert get_enabled_sensor_list(entry, CONF_POSITION_SENSORS, ALL_POSITION_SENSORS) == ALL_POSITION_SENSORS

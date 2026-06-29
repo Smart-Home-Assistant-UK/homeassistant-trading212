@@ -38,6 +38,13 @@ _BACKOFF_MAX = timedelta(minutes=5)
 _BACKOFF_FACTOR = 2
 
 
+def get_enabled_sensor_list(
+    entry: ConfigEntry, conf_key: str, fallback: list[str]
+) -> list[str]:
+    combined = {**entry.data, **entry.options}
+    return combined.get(conf_key, fallback)
+
+
 def ticker_to_slug(ticker: str) -> str:
     return re.sub(r"[^a-z0-9]", "_", ticker.lower())
 
