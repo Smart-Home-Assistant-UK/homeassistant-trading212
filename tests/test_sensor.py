@@ -440,9 +440,9 @@ async def test_default_pie_sensors_created_for_new_install(hass, mock_coordinato
     for attr in DEFAULT_PIE_SENSORS:
         assert hass.states.get(f"sensor.trading212_growth_pie_{attr}") is not None, attr
     # Non-default sensors must be absent
-    assert hass.states.get("sensor.trading212_growth_pie_pnl") is None
     assert hass.states.get("sensor.trading212_growth_pie_cash") is None
     assert hass.states.get("sensor.trading212_growth_pie_progress") is None
+    assert hass.states.get("sensor.trading212_growth_pie_goal") is None
 
 
 async def test_account_sensors_always_created_regardless_of_selection(hass, mock_coordinator_data):

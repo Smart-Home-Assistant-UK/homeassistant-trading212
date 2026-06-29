@@ -29,7 +29,7 @@ ALL_PIE_SENSORS: list[str] = [
 
 # Defaults for new installs
 DEFAULT_POSITION_SENSORS: list[str] = ["value", "quantity", "pnl", "pnl_percent"]
-DEFAULT_PIE_SENSORS: list[str] = ["value", "invested", "pnl_percent"]
+DEFAULT_PIE_SENSORS: list[str] = ["value", "invested", "pnl_percent", "pnl", "dividends_gained"]
 
 LIVE_BASE_URL = "https://live.trading212.com"
 DEMO_BASE_URL = "https://demo.trading212.com"
