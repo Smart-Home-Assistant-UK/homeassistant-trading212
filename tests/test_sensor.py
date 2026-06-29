@@ -2,10 +2,23 @@ from unittest.mock import MagicMock, AsyncMock, patch
 
 import pytest
 from homeassistant.components.sensor import SensorDeviceClass
+from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.trading212.const import CONF_ENVIRONMENT, CONF_LABEL, CONF_POLL_INTERVAL, DOMAIN, ENVIRONMENT_DEMO
-from custom_components.trading212.sensor import _entity_id, _label_slug
+from custom_components.trading212.const import (
+    ALL_PIE_SENSORS,
+    ALL_POSITION_SENSORS,
+    CONF_ENVIRONMENT,
+    CONF_LABEL,
+    CONF_PIE_SENSORS,
+    CONF_POLL_INTERVAL,
+    CONF_POSITION_SENSORS,
+    DEFAULT_PIE_SENSORS,
+    DEFAULT_POSITION_SENSORS,
+    DOMAIN,
+    ENVIRONMENT_DEMO,
+)
+from custom_components.trading212.sensor import _entity_id, _label_slug, _remove_disabled_entities
 
 
 @pytest.fixture
@@ -307,3 +320,160 @@ async def test_unlabelled_entity_ids_unchanged(hass, setup_integration):
     assert hass.states.get("sensor.trading212_total_value") is not None
     assert hass.states.get("sensor.trading212_aapl_us_eq_value") is not None
     assert hass.states.get("sensor.trading212_growth_pie_value") is not None
+
+
+# ---------------------------------------------------------------------------
+# Per-metric sensor selection
+# ---------------------------------------------------------------------------
+
+def _make_entry_with_selection(position_sensors, pie_sensors, entry_id="test_sel"):
+    return MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            "api_key": "test_key",
+            CONF_ENVIRONMENT: ENVIRONMENT_DEMO,
+            CONF_POLL_INTERVAL: 60,
+            CONF_POSITION_SENSORS: position_sensors,
+            CONF_PIE_SENSORS: pie_sensors,
+        },
+        entry_id=entry_id,
+    )
+
+
+async def _setup_with_selection(hass, mock_coordinator_data, position_sensors, pie_sensors, entry_id="test_sel"):
+    entry = _make_entry_with_selection(position_sensors, pie_sensors, entry_id)
+    entry.add_to_hass(hass)
+    with patch(
+        "custom_components.trading212.coordinator.Trading212Coordinator._async_update_data",
+        return_value=mock_coordinator_data,
+    ), patch("custom_components.trading212.api.Trading212Client"):
+        await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+    return entry
+
+
+# Legacy: no sensor keys in config → all sensors created
+
+async def test_legacy_install_creates_all_position_sensors(hass, setup_integration):
+    """Entry without sensor keys must produce every position sensor (backward compat)."""
+    for attr in ALL_POSITION_SENSORS:
+        slug = "avg_price" if attr == "average_price" else attr
+        assert hass.states.get(f"sensor.trading212_aapl_us_eq_{slug}") is not None, attr
+
+
+async def test_legacy_install_creates_all_pie_sensors(hass, setup_integration):
+    """Entry without sensor keys must produce every pie sensor (backward compat)."""
+    for attr in ALL_PIE_SENSORS:
+        assert hass.states.get(f"sensor.trading212_growth_pie_{attr}") is not None, attr
+
+
+# Specific selection: only chosen sensors are created
+
+async def test_position_selection_only_creates_chosen_sensors(hass, mock_coordinator_data):
+    await _setup_with_selection(hass, mock_coordinator_data, ["value", "pnl_percent"], DEFAULT_PIE_SENSORS)
+    assert hass.states.get("sensor.trading212_aapl_us_eq_value") is not None
+    assert hass.states.get("sensor.trading212_aapl_us_eq_pnl_percent") is not None
+    assert hass.states.get("sensor.trading212_aapl_us_eq_pnl") is None
+    assert hass.states.get("sensor.trading212_aapl_us_eq_quantity") is None
+    assert hass.states.get("sensor.trading212_aapl_us_eq_avg_price") is None
+    assert hass.states.get("sensor.trading212_aapl_us_eq_current_price") is None
+
+
+async def test_position_selection_applied_to_every_ticker(hass, mock_coordinator_data):
+    await _setup_with_selection(hass, mock_coordinator_data, ["value"], DEFAULT_PIE_SENSORS)
+    assert hass.states.get("sensor.trading212_aapl_us_eq_value") is not None
+    assert hass.states.get("sensor.trading212_msft_us_eq_value") is not None
+    assert hass.states.get("sensor.trading212_aapl_us_eq_pnl") is None
+    assert hass.states.get("sensor.trading212_msft_us_eq_pnl") is None
+
+
+async def test_pie_selection_only_creates_chosen_sensors(hass, mock_coordinator_data):
+    await _setup_with_selection(hass, mock_coordinator_data, DEFAULT_POSITION_SENSORS, ["value", "invested"])
+    assert hass.states.get("sensor.trading212_growth_pie_value") is not None
+    assert hass.states.get("sensor.trading212_growth_pie_invested") is not None
+    assert hass.states.get("sensor.trading212_growth_pie_pnl") is None
+    assert hass.states.get("sensor.trading212_growth_pie_pnl_percent") is None
+    assert hass.states.get("sensor.trading212_growth_pie_cash") is None
+    assert hass.states.get("sensor.trading212_growth_pie_progress") is None
+    assert hass.states.get("sensor.trading212_growth_pie_dividends_gained") is None
+
+
+async def test_default_position_sensors_created_for_new_install(hass, mock_coordinator_data):
+    await _setup_with_selection(hass, mock_coordinator_data, DEFAULT_POSITION_SENSORS, DEFAULT_PIE_SENSORS)
+    for attr in DEFAULT_POSITION_SENSORS:
+        assert hass.states.get(f"sensor.trading212_aapl_us_eq_{attr}") is not None, attr
+    # Non-default sensors must be absent
+    assert hass.states.get("sensor.trading212_aapl_us_eq_avg_price") is None
+    assert hass.states.get("sensor.trading212_aapl_us_eq_current_price") is None
+
+
+async def test_default_pie_sensors_created_for_new_install(hass, mock_coordinator_data):
+    await _setup_with_selection(hass, mock_coordinator_data, DEFAULT_POSITION_SENSORS, DEFAULT_PIE_SENSORS)
+    for attr in DEFAULT_PIE_SENSORS:
+        assert hass.states.get(f"sensor.trading212_growth_pie_{attr}") is not None, attr
+    # Non-default sensors must be absent
+    assert hass.states.get("sensor.trading212_growth_pie_pnl") is None
+    assert hass.states.get("sensor.trading212_growth_pie_cash") is None
+    assert hass.states.get("sensor.trading212_growth_pie_progress") is None
+
+
+async def test_account_sensors_always_created_regardless_of_selection(hass, mock_coordinator_data):
+    """Account-level sensors are never gated by position/pie sensor selection."""
+    await _setup_with_selection(hass, mock_coordinator_data, ["value"], ["value"])
+    assert hass.states.get("sensor.trading212_total_value") is not None
+    assert hass.states.get("sensor.trading212_unrealized_pnl") is not None
+    assert hass.states.get("sensor.trading212_daily_gain_loss") is not None
+
+
+# _remove_disabled_entities
+
+async def test_remove_disabled_entities_clears_stale_registry_entries(hass, mock_coordinator_data):
+    """Stale entities in the registry are removed when their unique_id is not in the enabled set."""
+    entry = await _setup_with_selection(
+        hass, mock_coordinator_data, ALL_POSITION_SENSORS, ALL_PIE_SENSORS, "test_rem"
+    )
+    registry = er.async_get(hass)
+
+    # Confirm a full-set sensor exists
+    ent = registry.async_get("sensor.trading212_aapl_us_eq_avg_price")
+    assert ent is not None
+
+    # Now simulate a narrowed-down set that excludes avg_price
+    enabled = {
+        f"{entry.entry_id}_total_value",
+        f"{entry.entry_id}_aapl_us_eq_value",
+        f"{entry.entry_id}_aapl_us_eq_pnl",
+        f"{entry.entry_id}_msft_us_eq_value",
+        f"{entry.entry_id}_msft_us_eq_pnl",
+        f"{entry.entry_id}_growth_pie_value",
+        f"{entry.entry_id}_growth_pie_invested",
+    }
+    _remove_disabled_entities(hass, entry, enabled)
+
+    # avg_price is not in the enabled set → must be gone
+    assert registry.async_get("sensor.trading212_aapl_us_eq_avg_price") is None
+    # value is in the enabled set → must still be present
+    assert registry.async_get("sensor.trading212_aapl_us_eq_value") is not None
+
+
+async def test_remove_disabled_entities_leaves_other_platforms_untouched(hass, mock_coordinator_data):
+    """Only entities with platform == DOMAIN should be removed."""
+    entry = await _setup_with_selection(
+        hass, mock_coordinator_data, ALL_POSITION_SENSORS, ALL_PIE_SENSORS, "test_plat"
+    )
+    registry = er.async_get(hass)
+
+    # Inject a fake entity from a different platform sharing the same entry
+    registry.async_get_or_create(
+        "sensor",
+        "other_platform",
+        "fake_unique_id",
+        config_entry=entry,
+    )
+
+    _remove_disabled_entities(hass, entry, set())  # empty set → would remove everything in DOMAIN
+
+    # The other-platform entity must survive
+    assert registry.async_get_or_create(
+        "sensor", "other_platform", "fake_unique_id", config_entry=entry
+    ) is not None

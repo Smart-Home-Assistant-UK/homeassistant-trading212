@@ -1,15 +1,44 @@
 """Test configuration for Trading212 integration."""
 import gc
 import time
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
+import voluptuous as vol
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+# ---------------------------------------------------------------------------
+# Backfill homeassistant.data_entry_flow.section for HA < 2024.7
+# This must run at module import time, before any integration code is loaded.
+# ---------------------------------------------------------------------------
+import homeassistant.data_entry_flow as _ha_def
+
+if not hasattr(_ha_def, "section"):
+
+    @dataclass
+    class _Section:
+        """Minimal Section stand-in: a callable that delegates to its schema."""
+        schema: vol.Schema
+        options: dict
+
+        def __call__(self, value):
+            return self.schema(value)
+
+    def _section(schema, options=None):
+        return _Section(schema=schema, options=options or {})
+
+    _ha_def.section = _section
+
+
 from custom_components.trading212.const import (
+    ALL_PIE_SENSORS,
+    ALL_POSITION_SENSORS,
     CONF_ENVIRONMENT,
+    CONF_PIE_SENSORS,
     CONF_POLL_INTERVAL,
+    CONF_POSITION_SENSORS,
     DOMAIN,
     ENVIRONMENT_DEMO,
 )
