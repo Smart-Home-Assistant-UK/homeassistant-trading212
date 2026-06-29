@@ -1,6 +1,41 @@
 # custom_components/trading212/const.py
 DOMAIN = "trading212"
 
+CONF_POSITION_SENSORS = "position_sensors"
+CONF_PIE_SENSORS = "pie_sensors"
+
+# All sensors the user can choose from, in display order
+OPTIONAL_POSITION_SENSOR_OPTIONS: dict[str, str] = {
+    "value": "Value ⭐ required by lovelace card",
+    "quantity": "Quantity ⭐ required by lovelace card",
+    "pnl": "P&L",
+    "pnl_percent": "P&L %",
+    "average_price": "Average Price",
+    "current_price": "Current Price",
+}
+
+OPTIONAL_PIE_SENSOR_OPTIONS: dict[str, str] = {
+    "value": "Value ⭐ required by lovelace card",
+    "invested": "Invested ⭐ required by lovelace card",
+    "pnl_percent": "P&L %",
+    "pnl": "P&L",
+    "progress": "Progress",
+    "cash": "Cash",
+    "goal": "Goal",
+    "dividends_gained": "Dividends Gained",
+    "dividends_in_cash": "Dividends in Cash",
+    "dividends_reinvested": "Dividends Reinvested",
+}
+
+# Defaults for new installs
+DEFAULT_POSITION_SENSORS: list[str] = ["value", "quantity", "pnl", "pnl_percent"]
+DEFAULT_PIE_SENSORS: list[str] = ["value", "invested", "pnl_percent"]
+
+# All sensors — used as the fallback for pre-feature installs where
+# all sensors were created unconditionally (no key stored in config entry)
+ALL_POSITION_SENSORS: list[str] = list(OPTIONAL_POSITION_SENSOR_OPTIONS.keys())
+ALL_PIE_SENSORS: list[str] = list(OPTIONAL_PIE_SENSOR_OPTIONS.keys())
+
 LIVE_BASE_URL = "https://live.trading212.com"
 DEMO_BASE_URL = "https://demo.trading212.com"
 
