@@ -273,6 +273,13 @@ async def test_daily_gain_loss_reflects_change(hass, mock_client):
     # AAPL: 1850 - 1750 = +100, MSFT: 1400 - 1400 = 0
     assert coord.data.daily_gain_loss == pytest.approx(100.0)
 
+    aapl = coord.data.positions["aapl_us_eq"]
+    msft = coord.data.positions["msft_us_eq"]
+    assert aapl.daily_gain_loss == pytest.approx(100.0)
+    assert aapl.daily_gain_loss_percent == pytest.approx(100.0 / 1750.0 * 100)
+    assert msft.daily_gain_loss == pytest.approx(0.0)
+    assert msft.daily_gain_loss_percent == pytest.approx(0.0)
+
 
 async def test_daily_baseline_resets_on_new_day(hass, mock_client):
     from homeassistant.config_entries import ConfigEntry
