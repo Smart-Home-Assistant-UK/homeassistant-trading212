@@ -19,7 +19,9 @@ class InvalidAPIKeyError(Exception):
 
 
 class RateLimitExceededError(Exception):
-    pass
+    def __init__(self, message: str, reset_at: float | None = None) -> None:
+        super().__init__(message)
+        self.reset_at = reset_at
 
 
 class APIConnectionError(Exception):
@@ -52,7 +54,12 @@ class Trading212Client:
                 if resp.status in (401, 403):
                     raise InvalidAPIKeyError(f"HTTP {resp.status}")
                 if resp.status == 429:
-                    raise RateLimitExceededError("Rate limit exceeded")
+                    reset_header = resp.headers.get("x-ratelimit-reset")
+                    try:
+                        reset_at = float(reset_header) if reset_header else None
+                    except (TypeError, ValueError):
+                        reset_at = None
+                    raise RateLimitExceededError("Rate limit exceeded", reset_at=reset_at)
                 if not resp.ok:
                     raise APIResponseError(f"HTTP {resp.status}")
                 data = await resp.json()

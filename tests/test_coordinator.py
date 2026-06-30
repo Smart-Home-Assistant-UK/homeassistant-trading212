@@ -185,6 +185,39 @@ async def test_coordinator_uses_instrument_names(coordinator):
     assert pos.instrument_name == "Apple"
 
 
+async def test_instruments_auth_failure_fails_coordinator(hass, mock_client):
+    """InvalidAPIKeyError from get_instruments must surface as a coordinator failure."""
+    from custom_components.trading212.api import InvalidAPIKeyError
+    from unittest.mock import MagicMock
+    from homeassistant.config_entries import ConfigEntry
+
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_instr_auth"
+    coord = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+    mock_client.get_instruments.side_effect = InvalidAPIKeyError("401")
+
+    await coord.async_refresh()
+
+    assert not coord.last_update_success
+
+
+async def test_instruments_connection_error_continues_with_tickers(hass, mock_client):
+    """APIConnectionError from get_instruments must not fail the coordinator."""
+    from custom_components.trading212.api import APIConnectionError
+    from unittest.mock import MagicMock
+    from homeassistant.config_entries import ConfigEntry
+
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_instr_conn"
+    coord = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+    mock_client.get_instruments.side_effect = APIConnectionError("timeout")
+
+    await coord.async_refresh()
+
+    assert coord.last_update_success
+    assert coord.data is not None
+
+
 async def test_coordinator_open_positions_count(coordinator):
     assert coordinator.data.open_positions_count == 2
 
@@ -214,20 +247,26 @@ async def test_daily_gain_loss_reflects_change(hass, mock_client):
     # Now AAPL goes up by 100
     mock_client.get_positions.return_value = [
         {
-            "ticker": "AAPL_US_EQ",
+            "instrument": {"ticker": "AAPL_US_EQ", "name": "Apple"},
             "quantity": 10.0,
-            "averagePrice": 150.0,
-            "currentPrice": 185.0,  # was 175
-            "ppl": 350.0,
-            "fxPpl": 0.0,
+            "averagePricePaid": 150.0,
+            "currentPrice": 185.0,
+            "walletImpact": {
+                "unrealizedProfitLoss": 350.0,
+                "currentValue": 1850.0,
+                "totalCost": 1500.0,
+            },
         },
         {
-            "ticker": "MSFT_US_EQ",
+            "instrument": {"ticker": "MSFT_US_EQ", "name": "Microsoft"},
             "quantity": 5.0,
-            "averagePrice": 300.0,
+            "averagePricePaid": 300.0,
             "currentPrice": 280.0,
-            "ppl": -100.0,
-            "fxPpl": 0.0,
+            "walletImpact": {
+                "unrealizedProfitLoss": -100.0,
+                "currentValue": 1400.0,
+                "totalCost": 1500.0,
+            },
         },
     ]
     await coord.async_refresh()
@@ -264,8 +303,28 @@ async def test_top_daily_mover_identified(hass, mock_client):
     await coord.async_refresh()  # baseline established
 
     mock_client.get_positions.return_value = [
-        {"ticker": "AAPL_US_EQ", "quantity": 10.0, "averagePrice": 150.0, "currentPrice": 185.0, "ppl": 350.0, "fxPpl": 0.0},
-        {"ticker": "MSFT_US_EQ", "quantity": 5.0, "averagePrice": 300.0, "currentPrice": 270.0, "ppl": -150.0, "fxPpl": 0.0},
+        {
+            "instrument": {"ticker": "AAPL_US_EQ", "name": "Apple"},
+            "quantity": 10.0,
+            "averagePricePaid": 150.0,
+            "currentPrice": 185.0,
+            "walletImpact": {
+                "unrealizedProfitLoss": 350.0,
+                "currentValue": 1850.0,
+                "totalCost": 1500.0,
+            },
+        },
+        {
+            "instrument": {"ticker": "MSFT_US_EQ", "name": "Microsoft"},
+            "quantity": 5.0,
+            "averagePricePaid": 300.0,
+            "currentPrice": 270.0,
+            "walletImpact": {
+                "unrealizedProfitLoss": -150.0,
+                "currentValue": 1350.0,
+                "totalCost": 1500.0,
+            },
+        },
     ]
     await coord.async_refresh()
 
@@ -945,3 +1004,113 @@ async def test_pie_detail_fetch_does_not_sleep(hass, mock_client):
         await coord.async_refresh()
 
     assert sleep_calls == [], f"Expected no sleep calls during pie fetch, got: {sleep_calls}"
+
+
+async def test_baseline_not_saved_when_positions_unchanged(hass, mock_client):
+    """Storage should not be written on polls where the baseline has not changed."""
+    from unittest.mock import MagicMock, AsyncMock, patch
+    from homeassistant.config_entries import ConfigEntry
+
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_baseline_dirty"
+    coord = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+
+    with patch.object(coord._store, "async_save", AsyncMock()) as mock_save, \
+         patch.object(coord._store, "async_load", AsyncMock(return_value=None)):
+        await coord.async_refresh()   # first run: new positions seed baseline → dirty → 1 save
+        first_count = mock_save.call_count
+        assert first_count == 1
+
+        await coord.async_refresh()   # second run: same positions, no change → 0 saves
+        assert mock_save.call_count == 1
+
+
+async def test_seen_dividend_ids_pruned_to_current_response(hass, mock_client):
+    """After each poll, _seen_dividend_ids must equal IDs in the current response."""
+    from unittest.mock import MagicMock
+    from homeassistant.config_entries import ConfigEntry
+    from custom_components.trading212.const import EVENT_DIVIDEND_RECEIVED
+
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_seen_prune"
+    coord = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+    await coord.async_refresh()  # seeds div_001 + div_002
+
+    # Next poll: div_002 gone, div_003 arrived
+    mock_client.get_dividends.return_value = {
+        "items": [
+            {"reference": "div_001", "ticker": "AAPL_US_EQ", "amount": 5.0, "paidOn": "2026-06-20"},
+            {"reference": "div_003", "ticker": "MSFT_US_EQ", "amount": 2.0, "paidOn": "2026-06-29"},
+        ],
+        "nextPageKey": None,
+    }
+
+    events = []
+    hass.bus.async_listen(EVENT_DIVIDEND_RECEIVED, lambda e: events.append(e))
+    await coord.async_refresh()
+    await hass.async_block_till_done()
+
+    # div_003 is new → event fired; div_001 was seen → no event
+    assert len(events) == 1
+    assert events[0].data["ticker"] == "MSFT_US_EQ"
+    # Pruned to current response IDs only
+    assert coord._seen_dividend_ids == {"div_001", "div_003"}
+    assert "div_002" not in coord._seen_dividend_ids
+
+
+async def test_first_fetch_seeds_all_current_dividend_ids(hass, mock_client):
+    """On first fetch, all dividend IDs in the response are seeded as already seen."""
+    from unittest.mock import MagicMock
+    from homeassistant.config_entries import ConfigEntry
+
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_seen_seed"
+    coord = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+    await coord.async_refresh()
+
+    assert coord._seen_dividend_ids == {"div_001", "div_002"}
+
+
+# ---------------------------------------------------------------------------
+# Rate-limit backoff: x-ratelimit-reset header
+# ---------------------------------------------------------------------------
+
+async def test_rate_limit_backoff_uses_reset_at_header(hass, mock_client):
+    """When reset_at is set, update_interval must equal reset_at - now + 1s."""
+    import time
+    from custom_components.trading212.api import RateLimitExceededError
+    from datetime import timedelta
+    from unittest.mock import MagicMock
+    from homeassistant.config_entries import ConfigEntry
+
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_rl_header"
+    coord = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+
+    future_reset = time.time() + 90  # 90s from now
+    mock_client.get_account_summary.side_effect = RateLimitExceededError(
+        "rate limited", reset_at=future_reset
+    )
+    await coord.async_refresh()
+
+    # Expect ~91s (90s until reset + 1s buffer); tolerance of 2s for test runtime
+    assert coord.update_interval.total_seconds() == pytest.approx(91.0, abs=2.0)
+
+
+async def test_rate_limit_backoff_falls_back_to_geometric_without_header(hass, mock_client):
+    """Without reset_at, backoff must double the current interval."""
+    from custom_components.trading212.api import RateLimitExceededError
+    from datetime import timedelta
+    from unittest.mock import MagicMock
+    from homeassistant.config_entries import ConfigEntry
+
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_rl_geometric"
+    coord = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+
+    mock_client.get_account_summary.side_effect = RateLimitExceededError("rate limited")
+    await coord.async_refresh()
+
+    # 60s * 2 = 120s (above BACKOFF_MIN of 30s, below BACKOFF_MAX of 300s)
+    assert coord.update_interval == timedelta(seconds=120)
+

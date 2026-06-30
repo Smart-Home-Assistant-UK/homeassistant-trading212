@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+import time
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING
@@ -25,6 +26,7 @@ from .const import (
     EVENT_POSITION_CLOSED,
     EVENT_POSITION_OPENED,
 )
+from .util import get_enabled_sensor_list
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -36,13 +38,6 @@ _LOGGER = logging.getLogger(__name__)
 _BACKOFF_MIN = timedelta(seconds=30)
 _BACKOFF_MAX = timedelta(minutes=5)
 _BACKOFF_FACTOR = 2
-
-
-def get_enabled_sensor_list(
-    entry: ConfigEntry, conf_key: str, fallback: list[str]
-) -> list[str]:
-    combined = {**entry.data, **entry.options}
-    return combined.get(conf_key, fallback)
 
 
 def ticker_to_slug(ticker: str) -> str:
@@ -133,8 +128,8 @@ class Trading212Coordinator(DataUpdateCoordinator[CoordinatorData]):
         self._pie_details: dict[int, dict] = {}
         self._daily_baseline: dict[str, float] = {}
         self._baseline_date: date | None = None
+        self._baseline_dirty: bool = False
         self._store = Store(hass, 1, f"{DOMAIN}.{config_entry.entry_id}.baseline")
-        self._seen_dividends_store = Store(hass, 1, f"{DOMAIN}.{config_entry.entry_id}.seen_dividends")
         self._previous_positions: dict[str, Position] = {}
         self._previous_pies: dict[str, Pie] = {}
         self._seen_dividend_ids: set[str] = set()
@@ -157,7 +152,9 @@ class Trading212Coordinator(DataUpdateCoordinator[CoordinatorData]):
                 self._instruments = {
                     i["ticker"]: i.get("shortName", i["ticker"]) for i in raw
                 }
-            except Exception:
+            except InvalidAPIKeyError as err:
+                raise UpdateFailed(f"Trading212 authentication failed: {err}") from err
+            except (APIConnectionError, APIResponseError, RateLimitExceededError):
                 _LOGGER.warning("Failed to fetch instruments metadata; using tickers as names")
 
         try:
@@ -169,7 +166,7 @@ class Trading212Coordinator(DataUpdateCoordinator[CoordinatorData]):
         except InvalidAPIKeyError as err:
             raise UpdateFailed(f"Trading212 authentication failed: {err}") from err
         except RateLimitExceededError as err:
-            self._apply_rate_limit_backoff()
+            self._apply_rate_limit_backoff(err)
             _LOGGER.warning(
                 "Rate limited by Trading212; backing off poll interval to %s",
                 self.update_interval,
@@ -197,6 +194,7 @@ class Trading212Coordinator(DataUpdateCoordinator[CoordinatorData]):
         if self._baseline_date != today:
             self._daily_baseline = {}
             self._baseline_date = today
+            self._baseline_dirty = True
 
         # Parse positions
         positions: dict[str, Position] = {}
@@ -244,8 +242,8 @@ class Trading212Coordinator(DataUpdateCoordinator[CoordinatorData]):
                             if i.get("ticker")
                         ],
                     }
-                except RateLimitExceededError:
-                    self._apply_rate_limit_backoff()
+                except RateLimitExceededError as err:
+                    self._apply_rate_limit_backoff(err)
                     _LOGGER.debug("Rate limited fetching pie %s details; will retry", pie_id)
                 except Exception as err:
                     _LOGGER.warning(
@@ -278,9 +276,12 @@ class Trading212Coordinator(DataUpdateCoordinator[CoordinatorData]):
         for slug, pos in positions.items():
             if slug not in self._daily_baseline:
                 self._daily_baseline[slug] = pos.value
+                self._baseline_dirty = True
 
-        # Persist baseline so it survives HA restarts within the same day
-        await self._store.async_save({"date": str(self._baseline_date), "baseline": self._daily_baseline})
+        # Persist only when the baseline actually changed
+        if self._baseline_dirty:
+            await self._store.async_save({"date": str(self._baseline_date), "baseline": self._daily_baseline})
+            self._baseline_dirty = False
 
         # Daily gain/loss vs baseline
         daily_gain_loss = sum(
@@ -330,14 +331,10 @@ class Trading212Coordinator(DataUpdateCoordinator[CoordinatorData]):
 
         # --- Automation event hooks ---
         if self._is_first_fetch:
-            stored_divs = await self._seen_dividends_store.async_load()
-            if stored_divs:
-                self._seen_dividend_ids = set(stored_divs)
-            for div in div_items:
-                div_id = str(div.get("reference", ""))
-                if div_id:
-                    self._seen_dividend_ids.add(div_id)
-            await self._seen_dividends_store.async_save(list(self._seen_dividend_ids))
+            # Seed all current IDs so historical dividends don't fire events on startup.
+            self._seen_dividend_ids = {
+                str(d.get("reference", "")) for d in div_items if d.get("reference")
+            }
             self._is_first_fetch = False
         else:
             # Position events
@@ -389,8 +386,10 @@ class Trading212Coordinator(DataUpdateCoordinator[CoordinatorData]):
                         "currency": summary.get("currency", ""),
                         "paid_on": div.get("paidOn", ""),
                     })
-                    self._seen_dividend_ids.add(div_id)
-            await self._seen_dividends_store.async_save(list(self._seen_dividend_ids))
+            # Prune to only current response IDs — bounds storage to page window size
+            self._seen_dividend_ids = {
+                str(d.get("reference", "")) for d in div_items if d.get("reference")
+            }
 
         self._previous_positions = positions
         self._previous_pies = pies
@@ -432,11 +431,20 @@ class Trading212Coordinator(DataUpdateCoordinator[CoordinatorData]):
                 break
         return items
 
-    def _apply_rate_limit_backoff(self) -> None:
-        current = self.update_interval or timedelta(seconds=self._base_poll_interval)
-        backed_off = min(current * _BACKOFF_FACTOR, _BACKOFF_MAX)
-        backed_off = max(backed_off, _BACKOFF_MIN)
-        self.update_interval = backed_off
+    def _apply_rate_limit_backoff(self, err: RateLimitExceededError | None = None) -> None:
+        if err is not None and err.reset_at is not None:
+            wait_seconds = max(
+                err.reset_at - time.time() + 1.0,
+                _BACKOFF_MIN.total_seconds(),
+            )
+            self.update_interval = timedelta(
+                seconds=min(wait_seconds, _BACKOFF_MAX.total_seconds())
+            )
+        else:
+            current = self.update_interval or timedelta(seconds=self._base_poll_interval)
+            backed_off = min(current * _BACKOFF_FACTOR, _BACKOFF_MAX)
+            backed_off = max(backed_off, _BACKOFF_MIN)
+            self.update_interval = backed_off
 
     def _restore_poll_interval(self) -> None:
         base = timedelta(seconds=self._base_poll_interval)

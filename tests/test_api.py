@@ -190,3 +190,25 @@ async def test_get_dividends_no_cursor_sends_no_params(client):
         )
         result = await client.get_dividends()
     assert result["items"][0]["amount"] == 5.0
+
+
+async def test_429_with_reset_header_sets_reset_at(client):
+    """x-ratelimit-reset header must be captured on 429 responses."""
+    with aioresponses() as m:
+        m.get(
+            f"{BASE_URL}/api/v0/equity/account/summary",
+            status=429,
+            headers={"x-ratelimit-reset": "1751000000"},
+        )
+        with pytest.raises(RateLimitExceededError) as exc_info:
+            await client.get_account_summary()
+    assert exc_info.value.reset_at == pytest.approx(1751000000.0)
+
+
+async def test_429_without_reset_header_has_none_reset_at(client):
+    """reset_at must be None when the header is absent."""
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/v0/equity/account/summary", status=429)
+        with pytest.raises(RateLimitExceededError) as exc_info:
+            await client.get_account_summary()
+    assert exc_info.value.reset_at is None

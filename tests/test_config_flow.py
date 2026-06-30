@@ -240,6 +240,17 @@ async def test_config_flow_aborts_if_already_configured(hass, mock_api_validatio
     assert result["reason"] == "already_configured"
 
 
+async def test_config_flow_allows_omitted_api_secret(hass):
+    """Flow must succeed when api_secret is not provided (bearer-token only auth)."""
+    result = await _complete_config_flow(hass, {
+        "api_key": "test_key",
+        CONF_ENVIRONMENT: ENVIRONMENT_DEMO,
+        CONF_POLL_INTERVAL: 60,
+        CONF_LABEL: "",
+    })
+    assert result["type"] == "create_entry"
+
+
 # --- Sensor selection in options flow ---
 
 async def test_options_flow_stores_sensor_selection(hass):
