@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch, call
 
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -87,3 +87,33 @@ async def test_unloading_one_entry_does_not_affect_other_session(hass, mock_coor
 
     assert "entry_p_session" not in hass.data[DOMAIN]
     assert "entry_q_session" in hass.data[DOMAIN]
+
+
+async def test_session_closed_when_first_refresh_fails(hass):
+    """The aiohttp session must be closed if async_config_entry_first_refresh raises."""
+    import aiohttp
+    from homeassistant.exceptions import ConfigEntryNotReady
+
+    entry = _make_entry("entry_fail")
+    entry.add_to_hass(hass)
+
+    closed_sessions: list = []
+
+    real_client_session_init = aiohttp.ClientSession.__init__
+
+    class _TrackingSession(aiohttp.ClientSession):
+        async def close(self):
+            closed_sessions.append(self)
+            await super().close()
+
+    with patch(
+        "custom_components.trading212.Trading212Coordinator.async_config_entry_first_refresh",
+        side_effect=ConfigEntryNotReady("API down"),
+    ), patch(
+        "custom_components.trading212.aiohttp.ClientSession",
+        _TrackingSession,
+    ), patch("custom_components.trading212.api.Trading212Client"):
+        await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert len(closed_sessions) == 1, "Session must be closed exactly once on failed first refresh"

@@ -168,3 +168,25 @@ async def test_get_pies_returns_list(client):
     assert len(result) == 1
     assert result[0]["id"] == 1001
     assert result[0]["settings"]["name"] == "Growth Pie"
+
+
+async def test_get_dividends_passes_cursor_param(client):
+    """cursor is forwarded as a query parameter when provided."""
+    with aioresponses() as m:
+        m.get(
+            f"{BASE_URL}/api/v0/equity/history/dividends?cursor=abc123",
+            payload={"items": [], "nextPageKey": None},
+        )
+        result = await client.get_dividends(cursor="abc123")
+    assert result == {"items": [], "nextPageKey": None}
+
+
+async def test_get_dividends_no_cursor_sends_no_params(client):
+    """No cursor query param is sent when cursor is omitted."""
+    with aioresponses() as m:
+        m.get(
+            f"{BASE_URL}/api/v0/equity/history/dividends",
+            payload={"items": [{"reference": "d1", "amount": 5.0}], "nextPageKey": None},
+        )
+        result = await client.get_dividends()
+    assert result["items"][0]["amount"] == 5.0

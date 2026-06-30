@@ -505,3 +505,59 @@ async def test_remove_disabled_entities_leaves_other_platforms_untouched(hass, m
     assert registry.async_get_or_create(
         "sensor", "other_platform", "fake_unique_id", config_entry=entry
     ) is not None
+
+
+# ---------------------------------------------------------------------------
+# SensorStateClass correctness
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("sensor_key", [
+    "unrealized_pnl",
+    "realized_pnl",
+    "daily_gain_loss",
+    "biggest_daily_gain",
+    "biggest_daily_loss",
+])
+async def test_account_pnl_sensors_have_no_state_class(hass, setup_integration, sensor_key):
+    """P&L sensors that can go negative must not use TOTAL (which implies non-decreasing).
+    HA forbids MEASUREMENT + MONETARY, so these sensors use state_class=None."""
+    state = hass.states.get(f"sensor.trading212_{sensor_key}")
+    assert state is not None, f"sensor.trading212_{sensor_key} not found"
+    assert state.attributes.get("state_class") is None, (
+        f"sensor.trading212_{sensor_key} has state_class={state.attributes.get('state_class')!r}, "
+        f"expected None (HA forbids MEASUREMENT+MONETARY; TOTAL is semantically wrong for P&L)"
+    )
+
+
+async def test_position_pnl_sensor_has_no_state_class(hass, setup_integration):
+    """Per-position P&L sensor must not use TOTAL (can go negative).
+    HA forbids MEASUREMENT + MONETARY, so state_class=None."""
+    state = hass.states.get("sensor.trading212_aapl_us_eq_pnl")
+    assert state is not None
+    assert state.attributes.get("state_class") is None
+
+
+async def test_position_value_sensor_uses_total_state_class(hass, setup_integration):
+    """Per-position value sensor (always positive) keeps TOTAL state class."""
+    from homeassistant.components.sensor import SensorStateClass
+
+    state = hass.states.get("sensor.trading212_aapl_us_eq_value")
+    assert state is not None
+    assert state.attributes.get("state_class") == SensorStateClass.TOTAL
+
+
+async def test_pie_pnl_sensor_has_no_state_class(hass, setup_integration):
+    """Per-pie P&L sensor must not use TOTAL (can go negative).
+    HA forbids MEASUREMENT + MONETARY, so state_class=None."""
+    state = hass.states.get("sensor.trading212_growth_pie_pnl")
+    assert state is not None
+    assert state.attributes.get("state_class") is None
+
+
+async def test_pie_value_sensor_uses_total_state_class(hass, setup_integration):
+    """Per-pie value sensor (always positive) keeps TOTAL state class."""
+    from homeassistant.components.sensor import SensorStateClass
+
+    state = hass.states.get("sensor.trading212_growth_pie_value")
+    assert state is not None
+    assert state.attributes.get("state_class") == SensorStateClass.TOTAL

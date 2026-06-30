@@ -17,6 +17,8 @@ async def async_get_config_entry_diagnostics(
 
     config = dict(entry.data)
     config["api_key"] = "**REDACTED**"
+    if "api_secret" in config:
+        config["api_secret"] = "**REDACTED**"
 
     coordinator_data: dict[str, Any] = {}
     if data is not None:

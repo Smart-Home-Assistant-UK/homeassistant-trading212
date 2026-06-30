@@ -410,6 +410,7 @@ async def test_no_events_fired_on_first_fetch(hass, mock_client):
         hass.bus.async_listen(event_type, lambda e: events.append(e))
 
     await coord.async_refresh()
+    await hass.async_block_till_done()
 
     assert events == [], f"Expected no events on first fetch, got: {[e.event_type for e in events]}"
 
@@ -455,6 +456,7 @@ async def test_position_opened_event_fires_on_new_ticker(hass, mock_client):
         }
     ]
     await coord.async_refresh()
+    await hass.async_block_till_done()
 
     assert len(events) == 1
     assert events[0].data["ticker"] == "TSLA_US_EQ"
@@ -478,6 +480,7 @@ async def test_position_closed_event_fires_on_removed_ticker(hass, mock_client):
     # Remove AAPL from positions
     mock_client.get_positions.return_value = [MOCK_POSITIONS[1]]
     await coord.async_refresh()
+    await hass.async_block_till_done()
 
     assert len(events) == 1
     assert events[0].data["ticker"] == "AAPL_US_EQ"
@@ -499,6 +502,7 @@ async def test_no_position_events_when_positions_unchanged(hass, mock_client):
         hass.bus.async_listen(t, lambda e: events.append(e))
 
     await coord.async_refresh()  # same positions
+    await hass.async_block_till_done()
 
     assert events == []
 
@@ -529,6 +533,7 @@ async def test_pie_created_event_fires_on_new_pie(hass, mock_client):
     mock_client.get_pies.return_value = MOCK_PIES + [MOCK_NEW_PIE]
     mock_client.get_pie.return_value = MOCK_NEW_PIE
     await coord.async_refresh()
+    await hass.async_block_till_done()
 
     assert len(events) == 1
     assert events[0].data["pie_id"] == 2002
@@ -573,6 +578,7 @@ async def test_no_pie_events_when_pies_unchanged(hass, mock_client):
         hass.bus.async_listen(t, lambda e: events.append(e))
 
     await coord.async_refresh()
+    await hass.async_block_till_done()
 
     assert events == []
 
@@ -599,6 +605,7 @@ async def test_dividend_received_event_fires_for_new_dividend(hass, mock_client)
         "nextPageKey": None,
     }
     await coord.async_refresh()
+    await hass.async_block_till_done()
 
     assert len(events) == 1
     assert events[0].data["ticker"] == "AAPL_US_EQ"
@@ -624,6 +631,7 @@ async def test_dividend_event_does_not_fire_twice_for_same_id(hass, mock_client)
     # Same dividend list — no new IDs
     await coord.async_refresh()
     await coord.async_refresh()
+    await hass.async_block_till_done()
 
     assert events == []
 
@@ -744,6 +752,7 @@ async def test_dividend_not_refired_after_restart(hass, mock_client):
     events = []
     hass.bus.async_listen(EVENT_DIVIDEND_RECEIVED, lambda e: events.append(e))
     await coord2.async_refresh()  # should load from Store, not fire anything
+    await hass.async_block_till_done()
 
     assert events == [], f"Re-fired after restart: {[e.data for e in events]}"
 
@@ -787,3 +796,152 @@ def test_get_enabled_sensor_list_falls_back_when_absent():
 def test_get_enabled_sensor_list_falls_back_to_all_for_legacy():
     entry = _make_entry(data={})
     assert get_enabled_sensor_list(entry, CONF_POSITION_SENSORS, ALL_POSITION_SENSORS) == ALL_POSITION_SENSORS
+
+
+# ---------------------------------------------------------------------------
+# Dividend pagination
+# ---------------------------------------------------------------------------
+
+async def test_dividend_pagination_sums_all_pages(hass, mock_client):
+    """total_dividends must include dividends from every page, not just the first."""
+    from homeassistant.config_entries import ConfigEntry
+    from unittest.mock import MagicMock
+
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_div_pagination"
+
+    page1 = {
+        "items": [
+            {"reference": "div_p1_001", "ticker": "AAPL_US_EQ", "amount": 5.0, "paidOn": "2026-06-01"},
+        ],
+        "nextPageKey": "cursor_page2",
+    }
+    page2 = {
+        "items": [
+            {"reference": "div_p2_001", "ticker": "MSFT_US_EQ", "amount": 3.0, "paidOn": "2026-05-15"},
+            {"reference": "div_p2_002", "ticker": "AAPL_US_EQ", "amount": 2.5, "paidOn": "2026-04-10"},
+        ],
+        "nextPageKey": None,
+    }
+
+    async def _get_dividends_side_effect(cursor=None):
+        if cursor is None:
+            return page1
+        return page2
+
+    mock_client.get_dividends.side_effect = _get_dividends_side_effect
+
+    coord = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+    await coord.async_refresh()
+
+    assert coord.data.total_dividends == pytest.approx(10.5)
+
+
+async def test_dividend_pagination_fires_events_for_all_pages(hass, mock_client):
+    """EVENT_DIVIDEND_RECEIVED must fire for new dividends found on page 2+."""
+    from homeassistant.config_entries import ConfigEntry
+    from unittest.mock import MagicMock
+    from custom_components.trading212.const import EVENT_DIVIDEND_RECEIVED
+
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_div_pagination_events"
+
+    page1 = {
+        "items": [{"reference": "div_001", "ticker": "AAPL_US_EQ", "amount": 5.0, "paidOn": "2026-06-01"}],
+        "nextPageKey": "cursor2",
+    }
+    page2 = {
+        "items": [{"reference": "div_002", "ticker": "MSFT_US_EQ", "amount": 3.0, "paidOn": "2026-05-01"}],
+        "nextPageKey": None,
+    }
+
+    call_count = 0
+
+    async def _side_effect(cursor=None):
+        nonlocal call_count
+        call_count += 1
+        return page1 if cursor is None else page2
+
+    mock_client.get_dividends.side_effect = _side_effect
+
+    coord = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+    await coord.async_refresh()  # seeds both IDs — no events
+
+    events = []
+    hass.bus.async_listen(EVENT_DIVIDEND_RECEIVED, lambda e: events.append(e))
+
+    # New dividend on page 2
+    page2_with_new = {
+        "items": [
+            {"reference": "div_002", "ticker": "MSFT_US_EQ", "amount": 3.0, "paidOn": "2026-05-01"},
+            {"reference": "div_003", "ticker": "MSFT_US_EQ", "amount": 4.0, "paidOn": "2026-06-28"},
+        ],
+        "nextPageKey": None,
+    }
+
+    async def _side_effect_with_new(cursor=None):
+        return page1 if cursor is None else page2_with_new
+
+    mock_client.get_dividends.side_effect = _side_effect_with_new
+    await coord.async_refresh()
+    await hass.async_block_till_done()
+
+    assert len(events) == 1
+    assert events[0].data["ticker"] == "MSFT_US_EQ"
+    assert events[0].data["amount"] == pytest.approx(4.0)
+
+
+async def test_dividend_pagination_follows_cursor_chain(hass, mock_client):
+    """get_dividends must be called with the correct cursor from each page response."""
+    from homeassistant.config_entries import ConfigEntry
+    from unittest.mock import MagicMock
+
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_div_cursor_chain"
+
+    cursors_received: list[str | None] = []
+
+    async def _side_effect(cursor=None):
+        cursors_received.append(cursor)
+        if cursor is None:
+            return {"items": [{"reference": "d1", "ticker": "X", "amount": 1.0, "paidOn": ""}], "nextPageKey": "next1"}
+        if cursor == "next1":
+            return {"items": [{"reference": "d2", "ticker": "X", "amount": 1.0, "paidOn": ""}], "nextPageKey": "next2"}
+        return {"items": [{"reference": "d3", "ticker": "X", "amount": 1.0, "paidOn": ""}], "nextPageKey": None}
+
+    mock_client.get_dividends.side_effect = _side_effect
+
+    coord = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+    await coord.async_refresh()
+
+    assert cursors_received == [None, "next1", "next2"]
+    assert coord.data.total_dividends == pytest.approx(3.0)
+
+
+# ---------------------------------------------------------------------------
+# Pie detail fetch — no sleep between fetches
+# ---------------------------------------------------------------------------
+
+async def test_pie_detail_fetch_does_not_sleep(hass, mock_client):
+    """asyncio.sleep must not be called when fetching new pie details."""
+    from homeassistant.config_entries import ConfigEntry
+    from unittest.mock import MagicMock
+    import asyncio
+
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_no_sleep"
+
+    coord = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+
+    sleep_calls: list = []
+
+    original_sleep = asyncio.sleep
+
+    async def _tracking_sleep(delay, *args, **kwargs):
+        sleep_calls.append(delay)
+        return await original_sleep(0)
+
+    with patch("custom_components.trading212.coordinator.asyncio.sleep", side_effect=_tracking_sleep):
+        await coord.async_refresh()
+
+    assert sleep_calls == [], f"Expected no sleep calls during pie fetch, got: {sleep_calls}"

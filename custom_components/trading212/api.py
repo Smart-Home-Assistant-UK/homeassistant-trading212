@@ -76,8 +76,9 @@ class Trading212Client:
     async def get_orders(self) -> list:
         return await self._get(API_ORDERS)
 
-    async def get_dividends(self) -> dict:
-        return await self._get(API_DIVIDENDS)
+    async def get_dividends(self, cursor: str | None = None) -> dict:
+        params = {"cursor": cursor} if cursor else None
+        return await self._get(API_DIVIDENDS, params=params)
 
     async def get_instruments(self) -> list:
         return await self._get(API_INSTRUMENTS)
