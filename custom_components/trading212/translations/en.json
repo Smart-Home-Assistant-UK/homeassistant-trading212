@@ -81,7 +81,9 @@
         "pnl": "P&L",
         "pnl_percent": "P&L %",
         "average_price": "Average Price",
-        "current_price": "Current Price"
+        "current_price": "Current Price",
+        "daily_gain_loss": "Daily Gain/Loss",
+        "daily_gain_loss_percent": "Daily Gain/Loss %"
       }
     },
     "pie_sensors": {

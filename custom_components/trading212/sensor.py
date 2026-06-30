@@ -195,12 +195,14 @@ _POSITION_ENTITY_SLUG: dict[str, str] = {
 
 POSITION_ATTRS: tuple[tuple[str, str, SensorDeviceClass | None, str | None, SensorStateClass | None], ...] = (
     # (attr_key, friendly_suffix, device_class, unit_override, state_class)
-    ("value",         "Value",         SensorDeviceClass.MONETARY, None,       SensorStateClass.TOTAL),
-    ("pnl",           "P&L",           SensorDeviceClass.MONETARY, None,       None),
-    ("pnl_percent",   "P&L %",         None,                       PERCENTAGE, SensorStateClass.MEASUREMENT),
-    ("quantity",      "Quantity",       None,                       None,       SensorStateClass.MEASUREMENT),
-    ("average_price", "Avg Price",      SensorDeviceClass.MONETARY, None,       SensorStateClass.TOTAL),
-    ("current_price", "Current Price",  SensorDeviceClass.MONETARY, None,       SensorStateClass.TOTAL),
+    ("value",                   "Value",            SensorDeviceClass.MONETARY, None,       SensorStateClass.TOTAL),
+    ("pnl",                     "P&L",              SensorDeviceClass.MONETARY, None,       None),
+    ("pnl_percent",             "P&L %",            None,                       PERCENTAGE, SensorStateClass.MEASUREMENT),
+    ("quantity",                "Quantity",          None,                       None,       SensorStateClass.MEASUREMENT),
+    ("average_price",           "Avg Price",         SensorDeviceClass.MONETARY, None,       SensorStateClass.TOTAL),
+    ("current_price",           "Current Price",     SensorDeviceClass.MONETARY, None,       SensorStateClass.TOTAL),
+    ("daily_gain_loss",         "Daily Gain/Loss",   SensorDeviceClass.MONETARY, None,       None),
+    ("daily_gain_loss_percent", "Daily Gain/Loss %", None,                       PERCENTAGE, SensorStateClass.MEASUREMENT),
 )
 
 PIE_ATTRS: tuple[tuple[str, str, SensorDeviceClass | None, str | None, SensorStateClass | None], ...] = (
