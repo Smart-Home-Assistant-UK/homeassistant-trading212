@@ -81,6 +81,13 @@ def no_sleep():
 
 @pytest.fixture
 def mock_config_entry():
+    """Config entry without CONF_POSITION_SENSORS / CONF_PIE_SENSORS.
+
+    Simulates a legacy install (pre-1.3.0) where sensor keys were absent and the
+    integration fell back to ALL_POSITION_SENSORS / ALL_PIE_SENSORS.  Tests using
+    this fixture implicitly exercise legacy-install mode, not default-install mode.
+    Use mock_config_entry_with_sensors for new-install behaviour.
+    """
     return MockConfigEntry(
         domain=DOMAIN,
         data={
@@ -89,6 +96,24 @@ def mock_config_entry():
             CONF_POLL_INTERVAL: 60,
         },
         entry_id="test_entry_id",
+    )
+
+
+@pytest.fixture
+def mock_config_entry_with_sensors():
+    """Config entry that mirrors a fresh install with default sensor selections."""
+    from custom_components.trading212.const import DEFAULT_PIE_SENSORS, DEFAULT_POSITION_SENSORS
+
+    return MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            "api_key": "test_key",
+            CONF_ENVIRONMENT: ENVIRONMENT_DEMO,
+            CONF_POLL_INTERVAL: 60,
+            CONF_POSITION_SENSORS: DEFAULT_POSITION_SENSORS,
+            CONF_PIE_SENSORS: DEFAULT_PIE_SENSORS,
+        },
+        entry_id="test_entry_default",
     )
 
 

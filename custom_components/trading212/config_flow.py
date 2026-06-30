@@ -11,7 +11,7 @@ from homeassistant.helpers.selector import (
 )
 
 from .api import InvalidAPIKeyError, Trading212Client, APIConnectionError
-from .coordinator import get_enabled_sensor_list
+from .util import combined_config, get_enabled_sensor_list
 from .const import (
     ALL_PIE_SENSORS,
     ALL_POSITION_SENSORS,
@@ -36,7 +36,7 @@ USER_SCHEMA = vol.Schema(
     {
         vol.Optional(CONF_LABEL, default=""): str,
         vol.Required("api_key"): str,
-        vol.Required(CONF_API_SECRET): str,
+        vol.Optional(CONF_API_SECRET, default=""): str,
         vol.Required(CONF_ENVIRONMENT, default=ENVIRONMENT_LIVE): vol.In(
             [ENVIRONMENT_LIVE, ENVIRONMENT_DEMO]
         ),
@@ -190,7 +190,7 @@ class Trading212OptionsFlow(config_entries.OptionsFlow):
                 )
                 return self.async_create_entry(title="", data=user_input)
 
-        combined = {**self.config_entry.data, **self.config_entry.options}
+        combined = combined_config(self.config_entry)
         # Key absent = pre-feature install; show all ticked to reflect what was actually created
         current_position_sensors = combined[CONF_POSITION_SENSORS] if CONF_POSITION_SENSORS in combined else ALL_POSITION_SENSORS
         current_pie_sensors = combined[CONF_PIE_SENSORS] if CONF_PIE_SENSORS in combined else ALL_PIE_SENSORS

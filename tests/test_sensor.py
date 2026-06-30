@@ -561,3 +561,27 @@ async def test_pie_value_sensor_uses_total_state_class(hass, setup_integration):
     state = hass.states.get("sensor.trading212_growth_pie_value")
     assert state is not None
     assert state.attributes.get("state_class") == SensorStateClass.TOTAL
+
+
+async def test_default_install_position_sensor_count(hass, mock_config_entry_with_sensors, mock_coordinator_data):
+    """A new install with default sensor selection creates exactly the default sensors per ticker."""
+    from custom_components.trading212.const import DEFAULT_POSITION_SENSORS
+
+    mock_config_entry_with_sensors.add_to_hass(hass)
+    with patch(
+        "custom_components.trading212.coordinator.Trading212Coordinator._async_update_data",
+        return_value=mock_coordinator_data,
+    ), patch("custom_components.trading212.api.Trading212Client"):
+        await hass.config_entries.async_setup(mock_config_entry_with_sensors.entry_id)
+        await hass.async_block_till_done()
+
+    states = hass.states.async_all("sensor")
+    position_sensor_ids = [
+        s.entity_id for s in states
+        if any(
+            f"_{ticker_slug}_" in s.entity_id
+            for ticker_slug in ["aapl_us_eq", "msft_us_eq"]
+        )
+    ]
+    # 2 tickers × len(DEFAULT_POSITION_SENSORS) sensors each
+    assert len(position_sensor_ids) == 2 * len(DEFAULT_POSITION_SENSORS)

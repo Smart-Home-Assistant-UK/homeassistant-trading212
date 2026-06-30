@@ -27,12 +27,12 @@ from .const import (
     CONF_POSITION_SENSORS,
     DOMAIN,
 )
-from .coordinator import CoordinatorData, Pie, Position, Trading212Coordinator, get_enabled_sensor_list
+from .coordinator import CoordinatorData, Pie, Position, Trading212Coordinator
+from .util import combined_config, get_enabled_sensor_list
 
 
 def _label_slug(coordinator: Trading212Coordinator) -> str:
-    combined = {**coordinator.config_entry.data, **coordinator.config_entry.options}
-    label = combined.get(CONF_LABEL, "").strip()
+    label = combined_config(coordinator.config_entry).get(CONF_LABEL, "").strip()
     if not label:
         return ""
     return re.sub(r"[^a-z0-9]+", "_", label.lower()).strip("_")
