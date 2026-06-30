@@ -1114,3 +1114,126 @@ async def test_rate_limit_backoff_falls_back_to_geometric_without_header(hass, m
     # 60s * 2 = 120s (above BACKOFF_MIN of 30s, below BACKOFF_MAX of 300s)
     assert coord.update_interval == timedelta(seconds=120)
 
+
+# ---------------------------------------------------------------------------
+# Error handling — main fetch block
+# ---------------------------------------------------------------------------
+
+async def test_lock_held_and_no_prior_data_raises_update_failed(hass, mock_client):
+    """When the update lock is held and no prior data exists, UpdateFailed must be raised."""
+    from homeassistant.config_entries import ConfigEntry
+    from unittest.mock import MagicMock
+    from homeassistant.helpers.update_coordinator import UpdateFailed
+
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_lock_no_data"
+    coord = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+
+    # Hold the lock before any successful refresh (so self.data is None)
+    async with coord._update_lock:
+        with pytest.raises(UpdateFailed, match="Update already in progress"):
+            await coord._async_update_data()
+
+
+async def test_auth_error_from_account_summary_fails_coordinator(hass, mock_client):
+    """InvalidAPIKeyError raised by get_account_summary must fail the coordinator."""
+    from custom_components.trading212.api import InvalidAPIKeyError
+    from homeassistant.config_entries import ConfigEntry
+    from unittest.mock import MagicMock
+
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_auth_main"
+    coord = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+
+    # Instruments succeed (get cached), then account summary raises auth error
+    mock_client.get_account_summary.side_effect = InvalidAPIKeyError("401")
+    await coord.async_refresh()
+
+    assert not coord.last_update_success
+
+
+async def test_connection_error_from_main_fetch_fails_coordinator(hass, mock_client):
+    """APIConnectionError from the main API block must surface as a coordinator failure."""
+    from custom_components.trading212.api import APIConnectionError
+    from homeassistant.config_entries import ConfigEntry
+    from unittest.mock import MagicMock
+
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_conn_main"
+    coord = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+
+    mock_client.get_account_summary.side_effect = APIConnectionError("timeout")
+    await coord.async_refresh()
+
+    assert not coord.last_update_success
+
+
+async def test_api_response_error_from_main_fetch_fails_coordinator(hass, mock_client):
+    """APIResponseError from the main API block must surface as a coordinator failure."""
+    from custom_components.trading212.api import APIResponseError
+    from homeassistant.config_entries import ConfigEntry
+    from unittest.mock import MagicMock
+
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_resp_err_main"
+    coord = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+
+    mock_client.get_account_summary.side_effect = APIResponseError("HTTP 503")
+    await coord.async_refresh()
+
+    assert not coord.last_update_success
+
+
+async def test_position_with_no_ticker_is_skipped(hass, mock_client):
+    """Positions that lack both instrument.ticker and a top-level ticker key must be ignored."""
+    from homeassistant.config_entries import ConfigEntry
+    from unittest.mock import MagicMock
+
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_no_ticker"
+    coord = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+
+    mock_client.get_positions.return_value = [
+        {"instrument": {}, "quantity": 1.0},  # no ticker anywhere
+        *MOCK_POSITIONS,
+    ]
+    await coord.async_refresh()
+
+    # Only the two valid positions must appear; the ticker-less entry is silently dropped
+    assert len(coord.data.positions) == 2
+
+
+async def test_rate_limit_during_pie_detail_applies_backoff(hass, mock_client):
+    """RateLimitExceededError from get_pie must apply backoff but not abort the whole update."""
+    from custom_components.trading212.api import RateLimitExceededError
+    from homeassistant.config_entries import ConfigEntry
+    from unittest.mock import MagicMock
+
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_pie_rl"
+    coord = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+
+    mock_client.get_pie.side_effect = RateLimitExceededError("rate limited")
+    await coord.async_refresh()
+
+    # The coordinator should still succeed overall (using placeholder pie info)
+    assert coord.last_update_success
+    # Backoff must have been applied
+    assert coord.update_interval.total_seconds() > 60
+
+
+async def test_dividends_non_dict_response_returns_empty(hass, mock_client):
+    """If get_dividends returns something other than a dict, the accumulator must stop and return []."""
+    from homeassistant.config_entries import ConfigEntry
+    from unittest.mock import MagicMock
+
+    entry = MagicMock(spec=ConfigEntry)
+    entry.entry_id = "test_div_non_dict"
+    coord = Trading212Coordinator(hass, mock_client, poll_interval=60, config_entry=entry)
+
+    mock_client.get_dividends.return_value = None  # not a dict
+    await coord.async_refresh()
+
+    assert coord.last_update_success
+    assert coord.data.total_dividends == 0.0
+

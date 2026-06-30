@@ -585,3 +585,82 @@ async def test_default_install_position_sensor_count(hass, mock_config_entry_wit
     ]
     # 2 tickers × len(DEFAULT_POSITION_SENSORS) sensors each
     assert len(position_sensor_ids) == 2 * len(DEFAULT_POSITION_SENSORS)
+
+
+# ---------------------------------------------------------------------------
+# None-guard: sensor properties when coordinator.data is None
+# ---------------------------------------------------------------------------
+
+async def test_account_sensor_native_value_is_none_when_no_data(hass, mock_coordinator_data):
+    """Trading212AccountSensor.native_value must return None when coordinator.data is None."""
+    from unittest.mock import MagicMock
+    from custom_components.trading212.sensor import Trading212AccountSensor, ACCOUNT_SENSOR_DESCRIPTIONS
+
+    coordinator = MagicMock()
+    coordinator.data = None
+    coordinator.config_entry.data = {CONF_ENVIRONMENT: ENVIRONMENT_DEMO, CONF_LABEL: ""}
+    coordinator.config_entry.options = {}
+    coordinator.config_entry.entry_id = "test_none_guard"
+
+    sensor = Trading212AccountSensor(coordinator, ACCOUNT_SENSOR_DESCRIPTIONS[0])
+    assert sensor.native_value is None
+
+
+async def test_position_sensor_returns_none_when_coordinator_data_is_none(hass, mock_coordinator_data):
+    """Trading212PositionSensor._position and native_value must return None when data is None."""
+    from unittest.mock import MagicMock
+    from custom_components.trading212.sensor import Trading212PositionSensor
+    from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
+
+    coordinator = MagicMock()
+    coordinator.data = None
+    coordinator.config_entry.data = {CONF_ENVIRONMENT: ENVIRONMENT_DEMO, CONF_LABEL: ""}
+    coordinator.config_entry.options = {}
+    coordinator.config_entry.entry_id = "test_pos_none"
+
+    sensor = Trading212PositionSensor(
+        coordinator, "aapl_us_eq", "value", "Value",
+        SensorDeviceClass.MONETARY, None, SensorStateClass.TOTAL
+    )
+    assert sensor._position is None
+    assert sensor.native_value is None
+
+
+async def test_position_sensor_returns_none_when_ticker_not_in_data(hass, mock_coordinator_data):
+    """Trading212PositionSensor.native_value must return None when the ticker is absent from data."""
+    from unittest.mock import MagicMock
+    from custom_components.trading212.sensor import Trading212PositionSensor
+    from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
+
+    coordinator = MagicMock()
+    coordinator.data.positions = {}  # ticker not present
+    coordinator.config_entry.data = {CONF_ENVIRONMENT: ENVIRONMENT_DEMO, CONF_LABEL: ""}
+    coordinator.config_entry.options = {}
+    coordinator.config_entry.entry_id = "test_pos_missing"
+
+    sensor = Trading212PositionSensor(
+        coordinator, "unknown_ticker", "value", "Value",
+        SensorDeviceClass.MONETARY, None, SensorStateClass.TOTAL
+    )
+    assert sensor.native_value is None
+
+
+async def test_pie_sensor_returns_none_when_coordinator_data_is_none(hass, mock_coordinator_data):
+    """Trading212PieSensor._pie and native_value must return None when data is None."""
+    from unittest.mock import MagicMock
+    from custom_components.trading212.sensor import Trading212PieSensor
+    from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
+
+    coordinator = MagicMock()
+    coordinator.data = None
+    coordinator.config_entry.data = {CONF_ENVIRONMENT: ENVIRONMENT_DEMO, CONF_LABEL: ""}
+    coordinator.config_entry.options = {}
+    coordinator.config_entry.entry_id = "test_pie_none"
+
+    sensor = Trading212PieSensor(
+        coordinator, "growth_pie", "value", "Value",
+        SensorDeviceClass.MONETARY, None, SensorStateClass.TOTAL
+    )
+    assert sensor._pie is None
+    assert sensor.native_value is None
+    assert sensor.native_unit_of_measurement is None

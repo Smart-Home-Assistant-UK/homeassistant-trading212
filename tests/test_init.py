@@ -89,6 +89,20 @@ async def test_unloading_one_entry_does_not_affect_other_session(hass, mock_coor
     assert "entry_q_session" in hass.data[DOMAIN]
 
 
+async def test_options_update_triggers_reload(hass, mock_coordinator_patch):
+    """Changing entry options must trigger async_reload via the update listener."""
+    entry = _make_entry("entry_reload")
+    entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    with patch.object(hass.config_entries, "async_reload") as mock_reload:
+        hass.config_entries.async_update_entry(entry, options={CONF_POLL_INTERVAL: 120})
+        await hass.async_block_till_done()
+
+    mock_reload.assert_called_once_with(entry.entry_id)
+
+
 async def test_session_closed_when_first_refresh_fails(hass):
     """The aiohttp session must be closed if async_config_entry_first_refresh raises."""
     import aiohttp
