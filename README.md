@@ -45,6 +45,7 @@ Copy the `custom_components/trading212` folder into your HA `config/custom_compo
 1. **Settings → Devices & Services → Add Integration**
 2. Search for **Trading212**
 3. Enter your API key, choose environment (Live or Demo), and set a poll interval
+4. Optionally open **Configure** on the integration to choose which per-position and per-pie sensors to enable (see [Sensor selection](#sensor-selection))
 
 If you have both Live and Demo accounts, add the integration twice — once per environment.
 
@@ -76,37 +77,46 @@ If you have both Live and Demo accounts, add the integration twice — once per 
 
 ### Per position
 
-Six sensors per holding, where the slug is the ticker lowercased with non-alphanumeric characters replaced by `_` (e.g. `VWRL` → `vwrl_eq`):
+Up to six sensors per holding — you choose which to enable via **Configure → Sensor selection** (see [Sensor selection](#sensor-selection) below). The slug is the ticker lowercased with non-alphanumeric characters replaced by `_` (e.g. `VWRL_EQ` → `vwrl_eq`):
 
-| Sensor | Description |
-|--------|-------------|
-| `sensor.trading212_<slug>_value` | Current market value |
-| `sensor.trading212_<slug>_pnl` | Unrealised P&L |
-| `sensor.trading212_<slug>_pnl_percent` | Return % |
-| `sensor.trading212_<slug>_quantity` | Shares held |
-| `sensor.trading212_<slug>_avg_price` | Average purchase price |
-| `sensor.trading212_<slug>_current_price` | Current market price |
+| Sensor | Default | Description |
+|--------|---------|-------------|
+| `sensor.trading212_<slug>_value` | ✓ | Current market value |
+| `sensor.trading212_<slug>_quantity` | ✓ | Shares held |
+| `sensor.trading212_<slug>_pnl` | ✓ | Unrealised P&L |
+| `sensor.trading212_<slug>_pnl_percent` | ✓ | Return % |
+| `sensor.trading212_<slug>_avg_price` | | Average purchase price |
+| `sensor.trading212_<slug>_current_price` | | Current market price |
 
 ### Per pie
 
 > **What are Pies?** Pies are Trading212's built-in portfolio buckets that let you group stocks and ETFs with target allocations and auto-invest rules. Each pie appears as its own set of sensors here.
 
-Ten sensors per pie, where the slug is the pie name lowercased with spaces and symbols replaced by `_` (e.g. `Aggressive but Safe` → `aggressive_but_safe`):
+Up to ten sensors per pie — you choose which to enable via **Configure → Sensor selection**. The slug is the pie name lowercased with spaces and symbols replaced by `_` (e.g. `Aggressive but Safe` → `aggressive_but_safe`):
 
-| Sensor | Description |
-|--------|-------------|
-| `sensor.trading212_<slug>_value` | Pie market value |
-| `sensor.trading212_<slug>_invested` | Amount invested |
-| `sensor.trading212_<slug>_pnl` | Unrealised P&L |
-| `sensor.trading212_<slug>_pnl_percent` | Return % |
-| `sensor.trading212_<slug>_cash` | Uninvested cash in pie |
-| `sensor.trading212_<slug>_progress` | Progress toward goal % |
-| `sensor.trading212_<slug>_goal` | Target goal amount |
-| `sensor.trading212_<slug>_dividends_gained` | Total dividends earned |
-| `sensor.trading212_<slug>_dividends_in_cash` | Dividends held as cash |
-| `sensor.trading212_<slug>_dividends_reinvested` | Dividends reinvested |
+| Sensor | Default | Description |
+|--------|---------|-------------|
+| `sensor.trading212_<slug>_value` | ✓ | Pie market value |
+| `sensor.trading212_<slug>_invested` | ✓ | Amount invested |
+| `sensor.trading212_<slug>_pnl_percent` | ✓ | Return % |
+| `sensor.trading212_<slug>_pnl` | ✓ | Unrealised P&L |
+| `sensor.trading212_<slug>_dividends_gained` | ✓ | Total dividends earned |
+| `sensor.trading212_<slug>_cash` | | Uninvested cash in pie |
+| `sensor.trading212_<slug>_progress` | | Progress toward goal % |
+| `sensor.trading212_<slug>_goal` | | Target goal amount |
+| `sensor.trading212_<slug>_dividends_in_cash` | | Dividends held as cash |
+| `sensor.trading212_<slug>_dividends_reinvested` | | Dividends reinvested |
 
 The **value** sensor for each pie also exposes a `tickers` state attribute — a list of the instrument tickers held within that pie (e.g. `["VWRL_EQ", "SMGBL_EQ"]`). This is used by the companion lovelace card to filter the asset allocation treemap to a single pie.
+
+### Sensor selection
+
+You can control exactly which per-position and per-pie sensors are created. Go to **Settings → Devices & Services → Trading212 → Configure**, then expand the **Sensor selection** panel.
+
+- **Position sensors**: Value and Quantity are required by the lovelace card (marked ⭐). P&L and P&L % appear in the card's main position view. Average Price and Current Price appear only in the expanded detail panel — enable these if you want to track entry price or build price-alert automations.
+- **Pie sensors**: Value and Invested are required by the lovelace card (marked ⭐). The remaining sensors are opt-in.
+
+Sensors you disable are removed as entities; sensors you re-enable are recreated on the next poll. Changing sensor selection reloads the integration, which may briefly show a "Needs attention" banner — this clears automatically once the first poll completes.
 
 ---
 
@@ -186,7 +196,7 @@ Full dashboard YAML: [`docs/dashboards/mushroom.yaml`](docs/dashboards/mushroom.
 ## Notes
 
 - **Read-only** — this integration cannot place or cancel orders
-- **Poll interval** — minimum 30 s, default 60 s; **60 s is strongly recommended**. The tightest Trading212 API limit is the pies endpoint at 1 request per 30 s — polling at 30 s will hit that limit on every cycle. Each pie also requires an individual API call on first discovery (spaced 5 s apart), so initial startup is slower with larger portfolios. If a rate limit is hit mid-poll, the integration backs off automatically (30 s → up to 5 minutes) and restores the original interval once the limit clears; sensors remain available showing the last known values during this time. If a poll takes longer than the configured interval, the next poll is skipped rather than running two in parallel
+- **Poll interval** — minimum 30 s, default 60 s; **60 s is strongly recommended**. The tightest Trading212 API limit is the pies endpoint at 1 request per 30 s — polling at 30 s will hit that limit on every cycle. Each pie also requires an individual API call on first discovery, so initial startup is slightly slower with larger portfolios. If a rate limit is hit mid-poll, the integration backs off automatically and restores the original interval once the limit clears; sensors remain available showing the last known values during this time. If a poll takes longer than the configured interval, the next poll is skipped rather than running two in parallel
 - **Daily P&L** — calculated by comparing current values to a snapshot taken at the start of each calendar day; resets at midnight local time
 
 ---
