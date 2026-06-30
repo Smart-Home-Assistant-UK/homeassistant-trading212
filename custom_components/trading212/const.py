@@ -12,6 +12,8 @@ ALL_POSITION_SENSORS: list[str] = [
     "pnl_percent",
     "average_price",
     "current_price",
+    "daily_gain_loss",
+    "daily_gain_loss_percent",
 ]
 
 ALL_PIE_SENSORS: list[str] = [

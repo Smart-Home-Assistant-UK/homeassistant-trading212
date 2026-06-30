@@ -55,6 +55,8 @@ class Position:
     value: float
     pnl: float
     pnl_percent: float
+    daily_gain_loss: float = 0.0
+    daily_gain_loss_percent: float = 0.0
 
 
 @dataclass
@@ -309,6 +311,11 @@ class Trading212Coordinator(DataUpdateCoordinator[CoordinatorData]):
             )
             for slug, pos in positions.items()
         ]
+
+        for slug, pos in positions.items():
+            baseline = self._daily_baseline.get(slug, pos.value)
+            pos.daily_gain_loss = pos.value - baseline
+            pos.daily_gain_loss_percent = (pos.daily_gain_loss / baseline * 100) if baseline > 0 else 0.0
 
         top_candidate = max(movers, key=lambda m: m.change_pct) if movers else None
         bottom_candidate = min(movers, key=lambda m: m.change_pct) if movers else None

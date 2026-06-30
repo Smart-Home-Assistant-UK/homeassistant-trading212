@@ -433,6 +433,37 @@ async def test_default_position_sensors_created_for_new_install(hass, mock_coord
     # Non-default sensors must be absent
     assert hass.states.get("sensor.trading212_aapl_us_eq_avg_price") is None
     assert hass.states.get("sensor.trading212_aapl_us_eq_current_price") is None
+    assert hass.states.get("sensor.trading212_aapl_us_eq_daily_gain_loss") is None
+    assert hass.states.get("sensor.trading212_aapl_us_eq_daily_gain_loss_percent") is None
+
+
+async def test_position_daily_gain_loss_sensors_created_when_enabled(hass, mock_coordinator_data):
+    from custom_components.trading212.coordinator import Position
+    mock_coordinator_data.positions["aapl_us_eq"] = Position(
+        ticker="AAPL_US_EQ",
+        ticker_slug="aapl_us_eq",
+        instrument_name="Apple",
+        quantity=10.0,
+        average_price=150.0,
+        current_price=175.0,
+        value=1750.0,
+        pnl=250.0,
+        pnl_percent=16.67,
+        daily_gain_loss=42.5,
+        daily_gain_loss_percent=2.5,
+    )
+    await _setup_with_selection(
+        hass,
+        mock_coordinator_data,
+        ["value", "daily_gain_loss", "daily_gain_loss_percent"],
+        DEFAULT_PIE_SENSORS,
+    )
+    gain = hass.states.get("sensor.trading212_aapl_us_eq_daily_gain_loss")
+    pct = hass.states.get("sensor.trading212_aapl_us_eq_daily_gain_loss_percent")
+    assert gain is not None
+    assert pct is not None
+    assert float(gain.state) == pytest.approx(42.5)
+    assert float(pct.state) == pytest.approx(2.5)
 
 
 async def test_default_pie_sensors_created_for_new_install(hass, mock_coordinator_data):
