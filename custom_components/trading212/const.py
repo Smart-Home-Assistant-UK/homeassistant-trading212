@@ -1,6 +1,36 @@
 # custom_components/trading212/const.py
 DOMAIN = "trading212"
 
+CONF_POSITION_SENSORS = "position_sensors"
+CONF_PIE_SENSORS = "pie_sensors"
+
+# All sensor keys, in display order — labels live in translations/en.json under "selector"
+ALL_POSITION_SENSORS: list[str] = [
+    "value",
+    "quantity",
+    "pnl",
+    "pnl_percent",
+    "average_price",
+    "current_price",
+]
+
+ALL_PIE_SENSORS: list[str] = [
+    "value",
+    "invested",
+    "pnl_percent",
+    "pnl",
+    "progress",
+    "cash",
+    "goal",
+    "dividends_gained",
+    "dividends_in_cash",
+    "dividends_reinvested",
+]
+
+# Defaults for new installs
+DEFAULT_POSITION_SENSORS: list[str] = ["value", "quantity", "pnl", "pnl_percent"]
+DEFAULT_PIE_SENSORS: list[str] = ["value", "invested", "pnl_percent", "pnl", "dividends_gained"]
+
 LIVE_BASE_URL = "https://live.trading212.com"
 DEMO_BASE_URL = "https://demo.trading212.com"
 

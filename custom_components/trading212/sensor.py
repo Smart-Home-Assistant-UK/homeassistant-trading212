@@ -13,17 +13,26 @@ from homeassistant.components.sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 import re
 
-from .const import CONF_LABEL, DOMAIN
-from .coordinator import CoordinatorData, Pie, Position, Trading212Coordinator
+from .const import (
+    ALL_PIE_SENSORS,
+    ALL_POSITION_SENSORS,
+    CONF_LABEL,
+    CONF_PIE_SENSORS,
+    CONF_POSITION_SENSORS,
+    DOMAIN,
+)
+from .coordinator import CoordinatorData, Pie, Position, Trading212Coordinator, get_enabled_sensor_list
 
 
 def _label_slug(coordinator: Trading212Coordinator) -> str:
-    label = coordinator.config_entry.data.get(CONF_LABEL, "").strip()
+    combined = {**coordinator.config_entry.data, **coordinator.config_entry.options}
+    label = combined.get(CONF_LABEL, "").strip()
     if not label:
         return ""
     return re.sub(r"[^a-z0-9]+", "_", label.lower()).strip("_")
@@ -213,6 +222,36 @@ PIE_ATTRS: tuple[tuple[str, str, SensorDeviceClass | None, str | None], ...] = (
 )
 
 
+def _enabled_position_attrs(
+    coordinator: Trading212Coordinator,
+) -> tuple[tuple[str, str, SensorDeviceClass | None, str | None], ...]:
+    enabled = set(get_enabled_sensor_list(coordinator.config_entry, CONF_POSITION_SENSORS, ALL_POSITION_SENSORS))
+    return tuple(a for a in POSITION_ATTRS if a[0] in enabled)
+
+
+def _enabled_pie_attrs(
+    coordinator: Trading212Coordinator,
+) -> tuple[tuple[str, str, SensorDeviceClass | None, str | None], ...]:
+    enabled = set(get_enabled_sensor_list(coordinator.config_entry, CONF_PIE_SENSORS, ALL_PIE_SENSORS))
+    return tuple(a for a in PIE_ATTRS if a[0] in enabled)
+
+
+def _remove_disabled_entities(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    enabled_unique_ids: set[str],
+) -> None:
+    registry = er.async_get(hass)
+    stale = [
+        entity.entity_id
+        for entity in er.async_entries_for_config_entry(registry, entry.entry_id)
+        if entity.unique_id not in enabled_unique_ids
+        and entity.platform == DOMAIN
+    ]
+    for entity_id in stale:
+        registry.async_remove(entity_id)
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -224,6 +263,25 @@ async def async_setup_entry(
         Trading212AccountSensor(coordinator, description)
         for description in ACCOUNT_SENSOR_DESCRIPTIONS
     )
+
+    position_attrs = _enabled_position_attrs(coordinator)
+    pie_attrs = _enabled_pie_attrs(coordinator)
+
+    # Build the set of unique IDs that should exist given current config,
+    # then remove any registry entries that are no longer enabled.
+    if coordinator.data is not None:
+        enabled_unique_ids: set[str] = {
+            f"{entry.entry_id}_{desc.key}" for desc in ACCOUNT_SENSOR_DESCRIPTIONS
+        } | {
+            f"{entry.entry_id}_{slug}_{attr_key}"
+            for slug in coordinator.data.positions
+            for attr_key, *_ in position_attrs
+        } | {
+            f"{entry.entry_id}_{slug}_{attr_key}"
+            for slug in coordinator.data.pies
+            for attr_key, *_ in pie_attrs
+        }
+        _remove_disabled_entities(hass, entry, enabled_unique_ids)
 
     known_slugs: set[str] = set()
 
@@ -238,7 +296,7 @@ async def async_setup_entry(
         async_add_entities(
             Trading212PositionSensor(coordinator, slug, attr_key, suffix, dc, unit)
             for slug in new_slugs
-            for attr_key, suffix, dc, unit in POSITION_ATTRS
+            for attr_key, suffix, dc, unit in position_attrs
         )
 
     _add_new_position_sensors()
@@ -257,7 +315,7 @@ async def async_setup_entry(
         async_add_entities(
             Trading212PieSensor(coordinator, slug, attr_key, suffix, dc, unit)
             for slug in new_slugs
-            for attr_key, suffix, dc, unit in PIE_ATTRS
+            for attr_key, suffix, dc, unit in pie_attrs
         )
 
     _add_new_pie_sensors()

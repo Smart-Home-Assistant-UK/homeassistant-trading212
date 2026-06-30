@@ -38,6 +38,13 @@ _BACKOFF_MAX = timedelta(minutes=5)
 _BACKOFF_FACTOR = 2
 
 
+def get_enabled_sensor_list(
+    entry: ConfigEntry, conf_key: str, fallback: list[str]
+) -> list[str]:
+    combined = {**entry.data, **entry.options}
+    return combined.get(conf_key, fallback)
+
+
 def ticker_to_slug(ticker: str) -> str:
     return re.sub(r"[^a-z0-9]", "_", ticker.lower())
 
@@ -303,10 +310,14 @@ class Trading212Coordinator(DataUpdateCoordinator[CoordinatorData]):
             for slug, pos in positions.items()
         ]
 
-        top = max(movers, key=lambda m: m.change_pct) if movers else None
-        bottom = min(movers, key=lambda m: m.change_pct) if movers else None
-        biggest_gain = max(movers, key=lambda m: m.change_value) if movers else None
-        biggest_loss = min(movers, key=lambda m: m.change_value) if movers else None
+        top_candidate = max(movers, key=lambda m: m.change_pct) if movers else None
+        bottom_candidate = min(movers, key=lambda m: m.change_pct) if movers else None
+        top = top_candidate if top_candidate and top_candidate.change_pct > 0 else None
+        bottom = bottom_candidate if bottom_candidate and bottom_candidate.change_pct < 0 else None
+        gain_candidate = max(movers, key=lambda m: m.change_value) if movers else None
+        loss_candidate = min(movers, key=lambda m: m.change_value) if movers else None
+        biggest_gain = gain_candidate if gain_candidate and gain_candidate.change_value > 0 else None
+        biggest_loss = loss_candidate if loss_candidate and loss_candidate.change_value < 0 else None
 
         # Parse summary
         cash = summary.get("cash", {})

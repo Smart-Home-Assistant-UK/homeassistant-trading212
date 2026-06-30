@@ -14,6 +14,18 @@
         "data_description": {
           "label": "A short name for this account (e.g. \"John\" or \"Jane\"). Required if you are adding more than one Trading212 integration."
         }
+      },
+      "sensors": {
+        "title": "Choose Sensors",
+        "description": "Choose which sensors to create per position and pie. Sensors marked ⭐ are required for the lovelace investment card to work.",
+        "data": {
+          "position_sensors": "Position sensors",
+          "pie_sensors": "Pie sensors"
+        },
+        "data_description": {
+          "position_sensors": "Sensors marked ⭐ are required for the lovelace card to discover and display positions. P&L and P&L % appear in the card's main view; Average Price and Current Price only in the expanded detail panel.",
+          "pie_sensors": "Sensors marked ⭐ are required for the lovelace card to discover and display pies. P&L % appears in the card's main view; all others only in the expanded detail panel. Note: P&L is not shown by the lovelace card."
+        }
       }
     },
     "error": {
@@ -31,13 +43,60 @@
       "init": {
         "title": "Trading212 Options",
         "data": {
+          "label": "Account Label (optional)",
           "environment": "Environment",
-          "poll_interval": "Poll Interval (seconds)"
+          "poll_interval": "Poll Interval (seconds)",
+          "position_sensors": "Position sensors",
+          "pie_sensors": "Pie sensors"
+        },
+        "data_description": {
+          "label": "A short name for this account (e.g. \"John\" or \"Jane\"). Required if you are adding more than one Trading212 integration.",
+          "position_sensors": "Sensors marked ⭐ are required for the lovelace card to discover and display positions. P&L and P&L % appear in the card's main view; Average Price and Current Price only in the expanded detail panel.",
+          "pie_sensors": "Sensors marked ⭐ are required for the lovelace card to discover and display pies. P&L % appears in the card's main view; all others only in the expanded detail panel. Note: P&L is not shown by the lovelace card."
+        },
+        "sections": {
+          "sensor_selection": {
+            "name": "Sensor selection",
+            "data": {
+              "position_sensors": "Position sensors",
+              "pie_sensors": "Pie sensors"
+            },
+            "data_description": {
+              "position_sensors": "Sensors marked ⭐ are required for the lovelace card to discover and display positions. P&L and P&L % appear in the card's main view; Average Price and Current Price only in the expanded detail panel.",
+              "pie_sensors": "Sensors marked ⭐ are required for the lovelace card to discover and display pies. P&L % appears in the card's main view; all others only in the expanded detail panel. Note: P&L is not shown by the lovelace card."
+            }
+          }
         }
       }
     },
     "error": {
       "invalid_poll_interval": "Poll interval must be at least 30 seconds."
+    }
+  },
+  "selector": {
+    "position_sensors": {
+      "options": {
+        "value": "Value ⭐ required by lovelace card",
+        "quantity": "Quantity ⭐ required by lovelace card",
+        "pnl": "P&L",
+        "pnl_percent": "P&L %",
+        "average_price": "Average Price",
+        "current_price": "Current Price"
+      }
+    },
+    "pie_sensors": {
+      "options": {
+        "value": "Value ⭐ required by lovelace card",
+        "invested": "Invested ⭐ required by lovelace card",
+        "pnl_percent": "P&L %",
+        "pnl": "P&L",
+        "progress": "Progress",
+        "cash": "Cash",
+        "goal": "Goal",
+        "dividends_gained": "Dividends Gained",
+        "dividends_in_cash": "Dividends in Cash",
+        "dividends_reinvested": "Dividends Reinvested"
+      }
     }
   }
 }

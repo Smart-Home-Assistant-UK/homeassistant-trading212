@@ -7,7 +7,11 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.trading212.const import (
     CONF_ENVIRONMENT,
     CONF_LABEL,
+    CONF_PIE_SENSORS,
     CONF_POLL_INTERVAL,
+    CONF_POSITION_SENSORS,
+    DEFAULT_PIE_SENSORS,
+    DEFAULT_POSITION_SENSORS,
     DOMAIN,
     ENVIRONMENT_DEMO,
     ENVIRONMENT_LIVE,
@@ -58,47 +62,60 @@ def mock_api_validation():
         yield mock_cls
 
 
-async def test_config_flow_creates_entry(hass):
+async def _complete_config_flow(hass, user_input, sensor_input=None):
+    """Helper: run both steps of the two-step config flow."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], user_input
+    )
+    # Step 1 → sensors step
+    assert result["type"] == "form"
+    assert result["step_id"] == "sensors"
+    # Step 2 → create entry (accept defaults if no sensor_input given)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], sensor_input or {}
+    )
+    return result
+
+
+async def test_config_flow_user_step_shows_form(hass):
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": config_entries.SOURCE_USER}
     )
     assert result["type"] == "form"
     assert result["step_id"] == "user"
 
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], VALID_INPUT
-    )
-    assert result["type"] == "create_entry"
-    assert result["data"] == VALID_INPUT
 
-
-async def test_config_flow_sets_title_with_environment(hass):
+async def test_config_flow_user_step_advances_to_sensors(hass):
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": config_entries.SOURCE_USER}
     )
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], VALID_INPUT
     )
+    assert result["type"] == "form"
+    assert result["step_id"] == "sensors"
+
+
+async def test_config_flow_creates_entry(hass):
+    result = await _complete_config_flow(hass, VALID_INPUT)
+    assert result["type"] == "create_entry"
+
+
+async def test_config_flow_sets_title_with_environment(hass):
+    result = await _complete_config_flow(hass, VALID_INPUT)
     assert "Demo" in result["title"] or "demo" in result["title"].lower()
 
 
 async def test_config_flow_title_without_label(hass):
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {**VALID_INPUT, CONF_LABEL: ""}
-    )
+    result = await _complete_config_flow(hass, {**VALID_INPUT, CONF_LABEL: ""})
     assert result["title"] == "Trading212 (Demo)"
 
 
 async def test_config_flow_title_with_label(hass):
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {**VALID_INPUT, CONF_LABEL: "John"}
-    )
+    result = await _complete_config_flow(hass, {**VALID_INPUT, CONF_LABEL: "John"})
     assert result["title"] == "Trading212 – John (Demo)"
 
 
@@ -156,6 +173,34 @@ async def test_config_flow_rejects_poll_interval_below_minimum(hass):
     assert CONF_POLL_INTERVAL in result["errors"] or "base" in result["errors"]
 
 
+# --- Sensor selection in config flow ---
+
+async def test_config_flow_stores_default_position_sensors(hass):
+    result = await _complete_config_flow(hass, VALID_INPUT)
+    assert result["data"][CONF_POSITION_SENSORS] == DEFAULT_POSITION_SENSORS
+
+
+async def test_config_flow_stores_default_pie_sensors(hass):
+    result = await _complete_config_flow(hass, VALID_INPUT)
+    assert result["data"][CONF_PIE_SENSORS] == DEFAULT_PIE_SENSORS
+
+
+async def test_config_flow_stores_custom_position_sensors(hass):
+    result = await _complete_config_flow(
+        hass, VALID_INPUT,
+        sensor_input={CONF_POSITION_SENSORS: ["value", "pnl_percent"]},
+    )
+    assert result["data"][CONF_POSITION_SENSORS] == ["value", "pnl_percent"]
+
+
+async def test_config_flow_stores_custom_pie_sensors(hass):
+    result = await _complete_config_flow(
+        hass, VALID_INPUT,
+        sensor_input={CONF_PIE_SENSORS: ["value", "invested"]},
+    )
+    assert result["data"][CONF_PIE_SENSORS] == ["value", "invested"]
+
+
 async def test_options_flow_updates_poll_interval(hass):
     entry = MockConfigEntry(domain=DOMAIN, data=VALID_INPUT, entry_id="test")
     entry.add_to_hass(hass)
@@ -183,17 +228,67 @@ async def test_options_flow_updates_environment(hass):
 
 
 async def test_config_flow_aborts_if_already_configured(hass, mock_api_validation):
-    # First setup
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
-    result = await hass.config_entries.flow.async_configure(result["flow_id"], VALID_INPUT)
+    result = await _complete_config_flow(hass, VALID_INPUT)
     assert result["type"] == "create_entry"
 
-    # Second setup with same account+environment — should abort
+    # Second setup with same account+environment — should abort on user step
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": config_entries.SOURCE_USER}
     )
     result = await hass.config_entries.flow.async_configure(result["flow_id"], VALID_INPUT)
     assert result["type"] == "abort"
     assert result["reason"] == "already_configured"
+
+
+# --- Sensor selection in options flow ---
+
+async def test_options_flow_stores_sensor_selection(hass):
+    entry = MockConfigEntry(domain=DOMAIN, data=VALID_INPUT, entry_id="test_sel")
+    entry.add_to_hass(hass)
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {
+            CONF_POLL_INTERVAL: 60,
+            CONF_ENVIRONMENT: ENVIRONMENT_DEMO,
+            "sensor_selection": {
+                CONF_POSITION_SENSORS: ["value", "pnl_percent"],
+                CONF_PIE_SENSORS: ["value"],
+            },
+        },
+    )
+    assert result["type"] == "create_entry"
+    assert result["data"][CONF_POSITION_SENSORS] == ["value", "pnl_percent"]
+    assert result["data"][CONF_PIE_SENSORS] == ["value"]
+
+
+async def test_options_flow_sensor_selection_defaults_when_omitted(hass):
+    entry = MockConfigEntry(domain=DOMAIN, data=VALID_INPUT, entry_id="test_nosel")
+    entry.add_to_hass(hass)
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {CONF_POLL_INTERVAL: 60, CONF_ENVIRONMENT: ENVIRONMENT_DEMO},
+    )
+    assert result["type"] == "create_entry"
+    assert result["data"][CONF_POSITION_SENSORS] == DEFAULT_POSITION_SENSORS
+    assert result["data"][CONF_PIE_SENSORS] == DEFAULT_PIE_SENSORS
+
+
+async def test_options_flow_sensor_selection_preserved_when_section_omitted(hass):
+    """Submitting options without sensor_selection must preserve the saved selection."""
+    custom_data = {
+        **VALID_INPUT,
+        CONF_POSITION_SENSORS: ["value", "pnl_percent"],
+        CONF_PIE_SENSORS: ["value"],
+    }
+    entry = MockConfigEntry(domain=DOMAIN, data=custom_data, entry_id="test_preserve")
+    entry.add_to_hass(hass)
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {CONF_POLL_INTERVAL: 90, CONF_ENVIRONMENT: ENVIRONMENT_DEMO},
+    )
+    assert result["type"] == "create_entry"
+    assert result["data"][CONF_POSITION_SENSORS] == ["value", "pnl_percent"]
+    assert result["data"][CONF_PIE_SENSORS] == ["value"]
