@@ -212,3 +212,48 @@ async def test_429_without_reset_header_has_none_reset_at(client):
         with pytest.raises(RateLimitExceededError) as exc_info:
             await client.get_account_summary()
     assert exc_info.value.reset_at is None
+
+
+async def test_429_with_invalid_reset_header_has_none_reset_at(client):
+    """Non-numeric x-ratelimit-reset header must yield reset_at=None."""
+    with aioresponses() as m:
+        m.get(
+            f"{BASE_URL}/api/v0/equity/account/summary",
+            status=429,
+            headers={"x-ratelimit-reset": "not-a-number"},
+        )
+        with pytest.raises(RateLimitExceededError) as exc_info:
+            await client.get_account_summary()
+    assert exc_info.value.reset_at is None
+
+
+async def test_200_too_many_requests_body_raises_rate_limit_error(client):
+    """200 response with a TooManyRequests context body must raise RateLimitExceededError."""
+    with aioresponses() as m:
+        m.get(
+            f"{BASE_URL}/api/v0/equity/account/summary",
+            status=200,
+            payload={"context": {"type": "TooManyRequests"}, "code": "TooManyRequests"},
+        )
+        with pytest.raises(RateLimitExceededError):
+            await client.get_account_summary()
+
+
+async def test_generic_client_error_raises_api_response_error(client):
+    """A generic aiohttp.ClientError (not ClientConnectionError) must raise APIResponseError."""
+    with aioresponses() as m:
+        m.get(
+            f"{BASE_URL}/api/v0/equity/account/summary",
+            exception=aiohttp.ClientPayloadError("payload truncated"),
+        )
+        with pytest.raises(APIResponseError):
+            await client.get_account_summary()
+
+
+async def test_get_pie_returns_dict(client):
+    """get_pie must fetch the individual pie endpoint and return the response."""
+    payload = {"settings": {"name": "Test Pie", "goal": 500.0, "id": 42}}
+    with aioresponses() as m:
+        m.get(f"{BASE_URL}/api/v0/equity/pies/42", payload=payload)
+        result = await client.get_pie(42)
+    assert result["settings"]["name"] == "Test Pie"

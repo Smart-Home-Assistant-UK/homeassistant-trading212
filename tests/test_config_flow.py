@@ -161,6 +161,25 @@ async def test_config_flow_connection_error_shows_error(hass):
     assert result["errors"]["base"] == "cannot_connect"
 
 
+async def test_config_flow_unknown_error_shows_error(hass):
+    with patch(
+        "custom_components.trading212.config_flow.Trading212Client"
+    ) as mock_cls:
+        mock_client = AsyncMock()
+        mock_client.get_account_summary.side_effect = RuntimeError("unexpected")
+        mock_cls.return_value = mock_client
+
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": config_entries.SOURCE_USER}
+        )
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], VALID_INPUT
+        )
+
+    assert result["type"] == "form"
+    assert result["errors"]["base"] == "unknown"
+
+
 async def test_config_flow_rejects_poll_interval_below_minimum(hass):
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": config_entries.SOURCE_USER}
