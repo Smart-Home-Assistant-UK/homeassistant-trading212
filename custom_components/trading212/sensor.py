@@ -87,7 +87,6 @@ ACCOUNT_SENSOR_DESCRIPTIONS: tuple[Trading212SensorDescription, ...] = (
         key="unrealized_pnl",
         name="Unrealized P&L",
         device_class=SensorDeviceClass.MONETARY,
-        state_class=SensorStateClass.TOTAL,
         value_fn=lambda d: d.unrealized_pnl,
         unit_fn=lambda d: d.currency,
     ),
@@ -95,7 +94,6 @@ ACCOUNT_SENSOR_DESCRIPTIONS: tuple[Trading212SensorDescription, ...] = (
         key="realized_pnl",
         name="Realized P&L",
         device_class=SensorDeviceClass.MONETARY,
-        state_class=SensorStateClass.TOTAL,
         value_fn=lambda d: d.realized_pnl,
         unit_fn=lambda d: d.currency,
     ),
@@ -130,7 +128,6 @@ ACCOUNT_SENSOR_DESCRIPTIONS: tuple[Trading212SensorDescription, ...] = (
         key="daily_gain_loss",
         name="Daily Gain/Loss",
         device_class=SensorDeviceClass.MONETARY,
-        state_class=SensorStateClass.TOTAL,
         value_fn=lambda d: d.daily_gain_loss,
         unit_fn=lambda d: d.currency,
     ),
@@ -165,7 +162,6 @@ ACCOUNT_SENSOR_DESCRIPTIONS: tuple[Trading212SensorDescription, ...] = (
         key="biggest_daily_gain",
         name="Biggest Daily Gain",
         device_class=SensorDeviceClass.MONETARY,
-        state_class=SensorStateClass.TOTAL,
         value_fn=lambda d: d.biggest_daily_gain.change_value if d.biggest_daily_gain else None,
         unit_fn=lambda d: d.currency,
         attrs_fn=lambda d: {
@@ -177,7 +173,6 @@ ACCOUNT_SENSOR_DESCRIPTIONS: tuple[Trading212SensorDescription, ...] = (
         key="biggest_daily_loss",
         name="Biggest Daily Loss",
         device_class=SensorDeviceClass.MONETARY,
-        state_class=SensorStateClass.TOTAL,
         value_fn=lambda d: d.biggest_daily_loss.change_value if d.biggest_daily_loss else None,
         unit_fn=lambda d: d.currency,
         attrs_fn=lambda d: {
@@ -198,27 +193,27 @@ _POSITION_ENTITY_SLUG: dict[str, str] = {
     "average_price": "avg_price",
 }
 
-POSITION_ATTRS: tuple[tuple[str, str, SensorDeviceClass | None, str | None], ...] = (
-    # (attr_key, friendly_suffix, device_class, unit_override)
-    ("value", "Value", SensorDeviceClass.MONETARY, None),
-    ("pnl", "P&L", SensorDeviceClass.MONETARY, None),
-    ("pnl_percent", "P&L %", None, PERCENTAGE),
-    ("quantity", "Quantity", None, None),
-    ("average_price", "Avg Price", SensorDeviceClass.MONETARY, None),
-    ("current_price", "Current Price", SensorDeviceClass.MONETARY, None),
+POSITION_ATTRS: tuple[tuple[str, str, SensorDeviceClass | None, str | None, SensorStateClass | None], ...] = (
+    # (attr_key, friendly_suffix, device_class, unit_override, state_class)
+    ("value",         "Value",         SensorDeviceClass.MONETARY, None,       SensorStateClass.TOTAL),
+    ("pnl",           "P&L",           SensorDeviceClass.MONETARY, None,       None),
+    ("pnl_percent",   "P&L %",         None,                       PERCENTAGE, SensorStateClass.MEASUREMENT),
+    ("quantity",      "Quantity",       None,                       None,       SensorStateClass.MEASUREMENT),
+    ("average_price", "Avg Price",      SensorDeviceClass.MONETARY, None,       SensorStateClass.TOTAL),
+    ("current_price", "Current Price",  SensorDeviceClass.MONETARY, None,       SensorStateClass.TOTAL),
 )
 
-PIE_ATTRS: tuple[tuple[str, str, SensorDeviceClass | None, str | None], ...] = (
-    ("value",                "Value",                SensorDeviceClass.MONETARY, None),
-    ("invested",             "Invested",             SensorDeviceClass.MONETARY, None),
-    ("pnl",                  "P&L",                  SensorDeviceClass.MONETARY, None),
-    ("pnl_percent",          "P&L %",                None,                       PERCENTAGE),
-    ("cash",                 "Cash",                 SensorDeviceClass.MONETARY, None),
-    ("progress",             "Progress",             None,                       PERCENTAGE),
-    ("goal",                 "Goal",                 SensorDeviceClass.MONETARY, None),
-    ("dividends_gained",     "Dividends Gained",     SensorDeviceClass.MONETARY, None),
-    ("dividends_in_cash",    "Dividends Cash",       SensorDeviceClass.MONETARY, None),
-    ("dividends_reinvested", "Dividends Reinvested", SensorDeviceClass.MONETARY, None),
+PIE_ATTRS: tuple[tuple[str, str, SensorDeviceClass | None, str | None, SensorStateClass | None], ...] = (
+    ("value",                "Value",                SensorDeviceClass.MONETARY, None,       SensorStateClass.TOTAL),
+    ("invested",             "Invested",             SensorDeviceClass.MONETARY, None,       SensorStateClass.TOTAL),
+    ("pnl",                  "P&L",                  SensorDeviceClass.MONETARY, None,       None),
+    ("pnl_percent",          "P&L %",                None,                       PERCENTAGE, SensorStateClass.MEASUREMENT),
+    ("cash",                 "Cash",                 SensorDeviceClass.MONETARY, None,       SensorStateClass.TOTAL),
+    ("progress",             "Progress",             None,                       PERCENTAGE, SensorStateClass.MEASUREMENT),
+    ("goal",                 "Goal",                 SensorDeviceClass.MONETARY, None,       SensorStateClass.TOTAL),
+    ("dividends_gained",     "Dividends Gained",     SensorDeviceClass.MONETARY, None,       SensorStateClass.TOTAL),
+    ("dividends_in_cash",    "Dividends Cash",       SensorDeviceClass.MONETARY, None,       SensorStateClass.TOTAL),
+    ("dividends_reinvested", "Dividends Reinvested", SensorDeviceClass.MONETARY, None,       SensorStateClass.TOTAL),
 )
 
 
@@ -275,11 +270,11 @@ async def async_setup_entry(
         } | {
             f"{entry.entry_id}_{slug}_{attr_key}"
             for slug in coordinator.data.positions
-            for attr_key, *_ in position_attrs
+            for attr_key, _suffix, _dc, _unit, _sc in position_attrs
         } | {
             f"{entry.entry_id}_{slug}_{attr_key}"
             for slug in coordinator.data.pies
-            for attr_key, *_ in pie_attrs
+            for attr_key, _suffix, _dc, _unit, _sc in pie_attrs
         }
         _remove_disabled_entities(hass, entry, enabled_unique_ids)
 
@@ -294,9 +289,9 @@ async def async_setup_entry(
             return
         known_slugs.update(new_slugs)
         async_add_entities(
-            Trading212PositionSensor(coordinator, slug, attr_key, suffix, dc, unit)
+            Trading212PositionSensor(coordinator, slug, attr_key, suffix, dc, unit, sc)
             for slug in new_slugs
-            for attr_key, suffix, dc, unit in position_attrs
+            for attr_key, suffix, dc, unit, sc in position_attrs
         )
 
     _add_new_position_sensors()
@@ -313,9 +308,9 @@ async def async_setup_entry(
             return
         known_pie_slugs.update(new_slugs)
         async_add_entities(
-            Trading212PieSensor(coordinator, slug, attr_key, suffix, dc, unit)
+            Trading212PieSensor(coordinator, slug, attr_key, suffix, dc, unit, sc)
             for slug in new_slugs
-            for attr_key, suffix, dc, unit in pie_attrs
+            for attr_key, suffix, dc, unit, sc in pie_attrs
         )
 
     _add_new_pie_sensors()
@@ -366,6 +361,7 @@ class Trading212PositionSensor(CoordinatorEntity[Trading212Coordinator], SensorE
         name_suffix: str,
         device_class: SensorDeviceClass | None,
         unit_override: str | None,
+        state_class: SensorStateClass,
     ) -> None:
         super().__init__(coordinator)
         self._ticker_slug = ticker_slug
@@ -375,10 +371,7 @@ class Trading212PositionSensor(CoordinatorEntity[Trading212Coordinator], SensorE
         self._attr_unique_id = (
             f"{coordinator.config_entry.entry_id}_{ticker_slug}_{attr_key}"
         )
-        self._attr_state_class = (
-            SensorStateClass.TOTAL if device_class == SensorDeviceClass.MONETARY
-            else SensorStateClass.MEASUREMENT
-        )
+        self._attr_state_class = state_class
         # Use a display slug that may differ from attr_key (e.g. avg_price vs average_price)
         entity_slug = _POSITION_ENTITY_SLUG.get(attr_key, attr_key)
         self._attr_suggested_object_id = _entity_id(_label_slug(coordinator), ticker_slug, entity_slug)
@@ -437,6 +430,7 @@ class Trading212PieSensor(CoordinatorEntity[Trading212Coordinator], SensorEntity
         name_suffix: str,
         device_class: SensorDeviceClass | None,
         unit_override: str | None,
+        state_class: SensorStateClass,
     ) -> None:
         super().__init__(coordinator)
         self._pie_slug = pie_slug
@@ -446,10 +440,7 @@ class Trading212PieSensor(CoordinatorEntity[Trading212Coordinator], SensorEntity
         self._attr_unique_id = (
             f"{coordinator.config_entry.entry_id}_{pie_slug}_{attr_key}"
         )
-        self._attr_state_class = (
-            SensorStateClass.TOTAL if device_class == SensorDeviceClass.MONETARY
-            else SensorStateClass.MEASUREMENT
-        )
+        self._attr_state_class = state_class
         self._attr_suggested_object_id = _entity_id(_label_slug(coordinator), pie_slug, attr_key)
 
     @property

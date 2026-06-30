@@ -292,3 +292,28 @@ async def test_options_flow_sensor_selection_preserved_when_section_omitted(hass
     assert result["type"] == "create_entry"
     assert result["data"][CONF_POSITION_SENSORS] == ["value", "pnl_percent"]
     assert result["data"][CONF_PIE_SENSORS] == ["value"]
+
+
+async def test_options_flow_invalid_poll_interval_shows_error(hass):
+    """Options flow must re-show the form with an error when poll interval is below minimum."""
+    entry = MockConfigEntry(domain=DOMAIN, data=VALID_INPUT, entry_id="test_opts_invalid")
+    entry.add_to_hass(hass)
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {CONF_POLL_INTERVAL: 5, CONF_ENVIRONMENT: ENVIRONMENT_DEMO},
+    )
+    assert result["type"] == "form"
+    assert CONF_POLL_INTERVAL in result["errors"]
+    assert result["errors"][CONF_POLL_INTERVAL] == "invalid_poll_interval"
+
+
+async def test_options_flow_uses_framework_config_entry(hass):
+    """OptionsFlow must read config_entry via self.config_entry (HA 2025+ pattern)."""
+    from custom_components.trading212.config_flow import Trading212OptionsFlow
+
+    assert "__init__" not in Trading212OptionsFlow.__dict__, (
+        "Trading212OptionsFlow must not override __init__; "
+        "use self.config_entry provided by the HA framework instead"
+    )

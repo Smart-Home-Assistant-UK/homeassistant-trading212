@@ -168,13 +168,10 @@ class Trading212ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     @staticmethod
     def async_get_options_flow(config_entry):
-        return Trading212OptionsFlow(config_entry)
+        return Trading212OptionsFlow()
 
 
 class Trading212OptionsFlow(config_entries.OptionsFlow):
-    def __init__(self, config_entry):
-        self._config_entry = config_entry
-
     async def async_step_init(self, user_input=None):
         errors = {}
         if user_input is not None:
@@ -185,15 +182,15 @@ class Trading212OptionsFlow(config_entries.OptionsFlow):
                 sensor_section = user_input.pop("sensor_selection", None) or {}
                 user_input[CONF_POSITION_SENSORS] = sensor_section.get(
                     CONF_POSITION_SENSORS,
-                    get_enabled_sensor_list(self._config_entry, CONF_POSITION_SENSORS, DEFAULT_POSITION_SENSORS),
+                    get_enabled_sensor_list(self.config_entry, CONF_POSITION_SENSORS, DEFAULT_POSITION_SENSORS),
                 )
                 user_input[CONF_PIE_SENSORS] = sensor_section.get(
                     CONF_PIE_SENSORS,
-                    get_enabled_sensor_list(self._config_entry, CONF_PIE_SENSORS, DEFAULT_PIE_SENSORS),
+                    get_enabled_sensor_list(self.config_entry, CONF_PIE_SENSORS, DEFAULT_PIE_SENSORS),
                 )
                 return self.async_create_entry(title="", data=user_input)
 
-        combined = {**self._config_entry.data, **self._config_entry.options}
+        combined = {**self.config_entry.data, **self.config_entry.options}
         # Key absent = pre-feature install; show all ticked to reflect what was actually created
         current_position_sensors = combined[CONF_POSITION_SENSORS] if CONF_POSITION_SENSORS in combined else ALL_POSITION_SENSORS
         current_pie_sensors = combined[CONF_PIE_SENSORS] if CONF_PIE_SENSORS in combined else ALL_PIE_SENSORS

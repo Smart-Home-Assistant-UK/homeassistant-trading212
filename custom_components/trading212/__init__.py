@@ -43,7 +43,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     client = Trading212Client(session, api_key, base_url, api_secret=api_secret)
     coordinator = Trading212Coordinator(hass, client, poll_interval, entry)
-    await coordinator.async_config_entry_first_refresh()
+    try:
+        await coordinator.async_config_entry_first_refresh()
+    except Exception:
+        await session.close()
+        raise
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     hass.data[DOMAIN][f"{entry.entry_id}_session"] = session

@@ -164,7 +164,7 @@ class Trading212Coordinator(DataUpdateCoordinator[CoordinatorData]):
             summary = await self._client.get_account_summary()
             positions_raw = await self._client.get_positions()
             orders_raw = await self._client.get_orders()
-            dividends_raw = await self._client.get_dividends()
+            div_items = await self._async_fetch_all_dividends()
             pies_raw = await self._client.get_pies()
         except InvalidAPIKeyError as err:
             raise UpdateFailed(f"Trading212 authentication failed: {err}") from err
@@ -232,7 +232,6 @@ class Trading212Coordinator(DataUpdateCoordinator[CoordinatorData]):
         for raw in pies_raw if isinstance(pies_raw, list) else []:
             pie_id = int(raw.get("id", 0))
             if pie_id not in self._pie_details:
-                await asyncio.sleep(5)
                 try:
                     detail = await self._client.get_pie(pie_id)
                     settings = detail.get("settings", {})
@@ -327,7 +326,6 @@ class Trading212Coordinator(DataUpdateCoordinator[CoordinatorData]):
         result_percent = (unrealized_pnl / total_cost * 100) if total_cost > 0 else 0.0
 
         # Sum dividends
-        div_items = dividends_raw.get("items", []) if isinstance(dividends_raw, dict) else []
         total_dividends = sum(float(d.get("amount", 0)) for d in div_items)
 
         # --- Automation event hooks ---
@@ -420,6 +418,19 @@ class Trading212Coordinator(DataUpdateCoordinator[CoordinatorData]):
             biggest_daily_loss=biggest_loss,
             last_updated=dt_util.now(),
         )
+
+    async def _async_fetch_all_dividends(self) -> list[dict]:
+        items: list[dict] = []
+        cursor: str | None = None
+        while True:
+            page = await self._client.get_dividends(cursor=cursor)
+            if not isinstance(page, dict):
+                break
+            items.extend(page.get("items", []))
+            cursor = page.get("nextPageKey") or None
+            if not cursor:
+                break
+        return items
 
     def _apply_rate_limit_backoff(self) -> None:
         current = self.update_interval or timedelta(seconds=self._base_poll_interval)
