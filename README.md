@@ -161,6 +161,8 @@ Full dashboard YAML: [`docs/dashboards/investment-card.yaml`](docs/dashboards/in
 |--------|-----------|
 | ![Health card](docs/screenshots/default/health-card.png) | ![Portfolio card](docs/screenshots/default/portfolio-card.png) |
 
+![Overview card](docs/screenshots/default/overview-card.png)
+
 | Positions | Positions expanded |
 |-----------|--------------------|
 | ![Positions card](docs/screenshots/default/positions-card.png) | ![Positions expanded](docs/screenshots/default/positions-card-expanded.png) |
@@ -193,6 +195,8 @@ mode: pies
 | Health | Portfolio |
 |--------|-----------|
 | ![Health dark](docs/screenshots/ios-dark/health-card.png) | ![Portfolio dark](docs/screenshots/ios-dark/portfolio-card.png) |
+
+![Overview card dark](docs/screenshots/ios-dark/overview-card.png)
 
 | Positions | Pies |
 |-----------|------|
