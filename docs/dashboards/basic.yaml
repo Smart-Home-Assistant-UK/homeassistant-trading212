@@ -9,7 +9,7 @@
 #   Account sensors:  sensor.trading212_<key>              (same for everyone)
 #   Position sensors: sensor.trading212_<ticker_slug>_<attr>
 #     ticker_slug = ticker lowercased with non-alphanumeric chars replaced by _
-#     e.g. VWRL → vwrll_eq → sensor.trading212_vwrll_eq_value
+#     e.g. VWRL_EQ → vwrl_eq → sensor.trading212_vwrl_eq_value
 #   Pie sensors:      sensor.trading212_<pie_name_slug>_<attr>
 #     pie_name_slug = pie name lowercased with spaces/symbols replaced by _
 #     e.g. "Aggressive but Safe" → aggressive_but_safe

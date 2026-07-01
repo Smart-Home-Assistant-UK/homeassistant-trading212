@@ -46,7 +46,8 @@ Copy the `custom_components/trading212` folder into your HA `config/custom_compo
 1. **Settings → Devices & Services → Add Integration**
 2. Search for **Trading212**
 3. Enter your API key, choose environment (Live or Demo), and set a poll interval
-4. Optionally open **Configure** on the integration to choose which per-position and per-pie sensors to enable (see [Sensor selection](#sensor-selection))
+4. Optionally set an **Account Label** if you're adding more than one account (see [Multiple accounts](#multiple-accounts))
+5. Optionally open **Configure** on the integration to choose which per-position and per-pie sensors to enable (see [Sensor selection](#sensor-selection))
 
 If you have both Live and Demo accounts, add the integration twice — once per environment.
 
@@ -119,6 +120,18 @@ You can control exactly which per-position and per-pie sensors are created. Go t
 
 Sensors you disable are removed as entities; sensors you re-enable are recreated on the next poll. Changing sensor selection reloads the integration, which may briefly show a "Needs attention" banner — this clears automatically once the first poll completes.
 
+### Multiple accounts
+
+You can add the integration more than once — for example, your account and a partner's, or a Live account alongside a Demo one. Set an **Account Label** (e.g. `John`) when adding each entry; it's slugified and inserted into every entity ID for that account:
+
+| Label | Resulting prefix |
+|-------|-------------------|
+| *(none)* | `sensor.trading212_` |
+| `John` | `sensor.trading212_john_` |
+| `Jane` | `sensor.trading212_jane_` |
+
+The companion lovelace card's `prefix` option points a card at the right account — see the [card repo's Multiple accounts docs](https://github.com/Smart-Home-Assistant-UK/lovelace-trading212-card#multiple-accounts).
+
 ---
 
 ## Dashboard Examples
@@ -158,7 +171,20 @@ Full dashboard YAML: [`docs/dashboards/investment-card.yaml`](docs/dashboards/in
 
 #### Asset allocation
 
-Three modes side by side — all positions, positions filtered to one pie, and pies overview:
+A squarified treemap showing portfolio weight and P&L, with three modes via `mode` and `pie`:
+
+```yaml
+# All positions (default)
+type: custom:investment-allocation-card
+
+# Positions within a specific pie
+type: custom:investment-allocation-card
+pie: aggressive_but_safe
+
+# Pies overview — each block is one pie
+type: custom:investment-allocation-card
+mode: pies
+```
 
 ![Asset allocation card](docs/screenshots/default/allocation-card.png)
 
