@@ -13,9 +13,7 @@ A read-only [Home Assistant](https://www.home-assistant.io/) custom component (H
 
 > **Don't have a Trading212 account yet?** Sign up with [this referral link](https://www.trading212.com/invite/1BlRG9Ii19) and we both receive a free share worth up to £100.
 
-| Default theme | iOS dark theme |
-|---------------|----------------|
-| ![Health card](docs/screenshots/default/health-card.png) | ![Health card dark](docs/screenshots/ios-dark/health-card.png) |
+![Health card](docs/screenshots/storybook/health-card.png)
 
 ---
 
@@ -46,7 +44,8 @@ Copy the `custom_components/trading212` folder into your HA `config/custom_compo
 1. **Settings → Devices & Services → Add Integration**
 2. Search for **Trading212**
 3. Enter your API key, choose environment (Live or Demo), and set a poll interval
-4. Optionally open **Configure** on the integration to choose which per-position and per-pie sensors to enable (see [Sensor selection](#sensor-selection))
+4. Optionally set an **Account Label** if you're adding more than one account (see [Multiple accounts](#multiple-accounts))
+5. Optionally open **Configure** on the integration to choose which per-position and per-pie sensors to enable (see [Sensor selection](#sensor-selection))
 
 If you have both Live and Demo accounts, add the integration twice — once per environment.
 
@@ -78,7 +77,7 @@ If you have both Live and Demo accounts, add the integration twice — once per 
 
 ### Per position
 
-Up to six sensors per holding — you choose which to enable via **Configure → Sensor selection** (see [Sensor selection](#sensor-selection) below). The slug is the ticker lowercased with non-alphanumeric characters replaced by `_` (e.g. `VWRL_EQ` → `vwrl_eq`):
+Up to eight sensors per holding — you choose which to enable via **Configure → Sensor selection** (see [Sensor selection](#sensor-selection) below). The slug is the ticker lowercased with non-alphanumeric characters replaced by `_` (e.g. `VWRL_EQ` → `vwrl_eq`):
 
 | Sensor | Default | Description |
 |--------|---------|-------------|
@@ -88,6 +87,8 @@ Up to six sensors per holding — you choose which to enable via **Configure →
 | `sensor.trading212_<slug>_pnl_percent` | ✓ | Return % |
 | `sensor.trading212_<slug>_avg_price` | | Average purchase price |
 | `sensor.trading212_<slug>_current_price` | | Current market price |
+| `sensor.trading212_<slug>_daily_gain_loss` | | Today's P&L for this position |
+| `sensor.trading212_<slug>_daily_gain_loss_percent` | | Today's return % for this position |
 
 ### Per pie
 
@@ -114,10 +115,24 @@ The **value** sensor for each pie also exposes a `tickers` state attribute — a
 
 You can control exactly which per-position and per-pie sensors are created. Go to **Settings → Devices & Services → Trading212 → Configure**, then expand the **Sensor selection** panel.
 
-- **Position sensors**: Value and Quantity are required by the lovelace card (marked ⭐). P&L and P&L % appear in the card's main position view. Average Price and Current Price appear only in the expanded detail panel — enable these if you want to track entry price or build price-alert automations.
-- **Pie sensors**: Value and Invested are required by the lovelace card (marked ⭐). The remaining sensors are opt-in.
+- **Position sensors**: Value, Quantity, P&L, and P&L % are enabled by default and cover the card's main position view. Average Price, Current Price, and Daily Gain/Loss (%) are opt-in — enable these if you want to track entry price, build price-alert automations, or show per-position daily P&L.
+- **Pie sensors**: Value, Invested, P&L, P&L %, and Dividends Gained are enabled by default. The remaining sensors are opt-in.
 
 Sensors you disable are removed as entities; sensors you re-enable are recreated on the next poll. Changing sensor selection reloads the integration, which may briefly show a "Needs attention" banner — this clears automatically once the first poll completes.
+
+The lovelace card handles partial selections gracefully: a position or pie appears as soon as *any* one of its sensors exists, and fields for sensors you haven't enabled are simply omitted rather than shown as a placeholder. This is different from a sensor that's enabled but temporarily `unavailable` (e.g. mid-poll), which the card renders as `—`.
+
+### Multiple accounts
+
+You can add the integration more than once — for example, your account and a partner's, or a Live account alongside a Demo one. Set an **Account Label** (e.g. `John`) when adding each entry; it's slugified and inserted into every entity ID for that account:
+
+| Label | Resulting prefix |
+|-------|-------------------|
+| *(none)* | `sensor.trading212_` |
+| `John` | `sensor.trading212_john_` |
+| `Jane` | `sensor.trading212_jane_` |
+
+The companion lovelace card's `prefix` option points a card at the right account — see the [card repo's Multiple accounts docs](https://github.com/Smart-Home-Assistant-UK/lovelace-trading212-card#multiple-accounts).
 
 ---
 
@@ -144,33 +159,46 @@ type: custom:investment-portfolio-card
 
 Full dashboard YAML: [`docs/dashboards/investment-card.yaml`](docs/dashboards/investment-card.yaml)
 
-| Health | Portfolio |
-|--------|-----------|
-| ![Health card](docs/screenshots/default/health-card.png) | ![Portfolio card](docs/screenshots/default/portfolio-card.png) |
+> Screenshots below are rendered from the card's Storybook with sample data. Colours, backgrounds, and fonts come from HA's CSS custom properties, so the card adapts automatically to whatever theme you're running — there's no separate light/dark variant to maintain.
+
+| Health | Overview |
+|--------|----------|
+| ![Health card](docs/screenshots/storybook/health-card.png) | ![Overview card](docs/screenshots/storybook/overview-card.png) |
 
 | Positions | Positions expanded |
 |-----------|--------------------|
-| ![Positions card](docs/screenshots/default/positions-card.png) | ![Positions expanded](docs/screenshots/default/positions-card-expanded.png) |
+| ![Positions card](docs/screenshots/storybook/positions-card.png) | ![Positions expanded](docs/screenshots/storybook/positions-card-expanded.png) |
 
 | Pies | Pies expanded |
 |------|---------------|
-| ![Pies card](docs/screenshots/default/pies-card.png) | ![Pies expanded](docs/screenshots/default/pies-card-expanded.png) |
+| ![Pies card](docs/screenshots/storybook/pies-card.png) | ![Pies expanded](docs/screenshots/storybook/pies-card-expanded.png) |
+
+#### Portfolio card
+
+All-in-one view combining overview, positions, and pies:
+
+![Portfolio card](docs/screenshots/storybook/portfolio-card.png)
 
 #### Asset allocation
 
-Three modes side by side — all positions, positions filtered to one pie, and pies overview:
+A squarified treemap showing portfolio weight and P&L, with three modes via `mode` and `pie`:
 
-![Asset allocation card](docs/screenshots/default/allocation-card.png)
+```yaml
+# All positions (default)
+type: custom:investment-allocation-card
 
-#### iOS dark theme
+# Positions within a specific pie
+type: custom:investment-allocation-card
+pie: aggressive_but_safe
 
-| Health | Portfolio |
-|--------|-----------|
-| ![Health dark](docs/screenshots/ios-dark/health-card.png) | ![Portfolio dark](docs/screenshots/ios-dark/portfolio-card.png) |
+# Pies overview — each block is one pie
+type: custom:investment-allocation-card
+mode: pies
+```
 
-| Positions | Pies |
-|-----------|------|
-| ![Positions dark](docs/screenshots/ios-dark/positions-card.png) | ![Pies dark](docs/screenshots/ios-dark/pies-card.png) |
+| Positions | Filtered to one pie | Pies |
+|-----------|----------------------|------|
+| ![Allocation positions](docs/screenshots/storybook/allocation-positions.png) | ![Allocation pie-filtered](docs/screenshots/storybook/allocation-pie-filtered.png) | ![Allocation pies](docs/screenshots/storybook/allocation-pies.png) |
 
 ### Basic (no dependencies)
 
