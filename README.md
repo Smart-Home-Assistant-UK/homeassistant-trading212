@@ -77,7 +77,7 @@ If you have both Live and Demo accounts, add the integration twice — once per 
 
 ### Per position
 
-Up to six sensors per holding — you choose which to enable via **Configure → Sensor selection** (see [Sensor selection](#sensor-selection) below). The slug is the ticker lowercased with non-alphanumeric characters replaced by `_` (e.g. `VWRL_EQ` → `vwrl_eq`):
+Up to eight sensors per holding — you choose which to enable via **Configure → Sensor selection** (see [Sensor selection](#sensor-selection) below). The slug is the ticker lowercased with non-alphanumeric characters replaced by `_` (e.g. `VWRL_EQ` → `vwrl_eq`):
 
 | Sensor | Default | Description |
 |--------|---------|-------------|
@@ -87,6 +87,8 @@ Up to six sensors per holding — you choose which to enable via **Configure →
 | `sensor.trading212_<slug>_pnl_percent` | ✓ | Return % |
 | `sensor.trading212_<slug>_avg_price` | | Average purchase price |
 | `sensor.trading212_<slug>_current_price` | | Current market price |
+| `sensor.trading212_<slug>_daily_gain_loss` | | Today's P&L for this position |
+| `sensor.trading212_<slug>_daily_gain_loss_percent` | | Today's return % for this position |
 
 ### Per pie
 
@@ -113,10 +115,12 @@ The **value** sensor for each pie also exposes a `tickers` state attribute — a
 
 You can control exactly which per-position and per-pie sensors are created. Go to **Settings → Devices & Services → Trading212 → Configure**, then expand the **Sensor selection** panel.
 
-- **Position sensors**: Value and Quantity are required by the lovelace card (marked ⭐). P&L and P&L % appear in the card's main position view. Average Price and Current Price appear only in the expanded detail panel — enable these if you want to track entry price or build price-alert automations.
+- **Position sensors**: Value and Quantity are required by the lovelace card (marked ⭐). P&L and P&L % appear in the card's main position view. Average Price, Current Price, and Daily Gain/Loss (%) appear only in the expanded detail panel — enable these if you want to track entry price, build price-alert automations, or show per-position daily P&L.
 - **Pie sensors**: Value and Invested are required by the lovelace card (marked ⭐). The remaining sensors are opt-in.
 
 Sensors you disable are removed as entities; sensors you re-enable are recreated on the next poll. Changing sensor selection reloads the integration, which may briefly show a "Needs attention" banner — this clears automatically once the first poll completes.
+
+The lovelace card handles partial selections gracefully: a position or pie appears as soon as *any* one of its sensors exists, and fields for sensors you haven't enabled are simply omitted rather than shown as a placeholder. This is different from a sensor that's enabled but temporarily `unavailable` (e.g. mid-poll), which the card renders as `—`.
 
 ### Multiple accounts
 
