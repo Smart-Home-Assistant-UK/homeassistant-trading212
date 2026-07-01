@@ -115,8 +115,8 @@ The **value** sensor for each pie also exposes a `tickers` state attribute — a
 
 You can control exactly which per-position and per-pie sensors are created. Go to **Settings → Devices & Services → Trading212 → Configure**, then expand the **Sensor selection** panel.
 
-- **Position sensors**: Value and Quantity are required by the lovelace card (marked ⭐). P&L and P&L % appear in the card's main position view. Average Price, Current Price, and Daily Gain/Loss (%) appear only in the expanded detail panel — enable these if you want to track entry price, build price-alert automations, or show per-position daily P&L.
-- **Pie sensors**: Value and Invested are required by the lovelace card (marked ⭐). The remaining sensors are opt-in.
+- **Position sensors**: Value, Quantity, P&L, and P&L % are enabled by default and cover the card's main position view. Average Price, Current Price, and Daily Gain/Loss (%) are opt-in — enable these if you want to track entry price, build price-alert automations, or show per-position daily P&L.
+- **Pie sensors**: Value, Invested, P&L, P&L %, and Dividends Gained are enabled by default. The remaining sensors are opt-in.
 
 Sensors you disable are removed as entities; sensors you re-enable are recreated on the next poll. Changing sensor selection reloads the integration, which may briefly show a "Needs attention" banner — this clears automatically once the first poll completes.
 
