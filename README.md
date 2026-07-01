@@ -13,9 +13,7 @@ A read-only [Home Assistant](https://www.home-assistant.io/) custom component (H
 
 > **Don't have a Trading212 account yet?** Sign up with [this referral link](https://www.trading212.com/invite/1BlRG9Ii19) and we both receive a free share worth up to £100.
 
-| Default theme | iOS dark theme |
-|---------------|----------------|
-| ![Health card](docs/screenshots/default/health-card.png) | ![Health card dark](docs/screenshots/ios-dark/health-card.png) |
+![Health card](docs/screenshots/default/health-card.png)
 
 ---
 
@@ -189,18 +187,6 @@ mode: pies
 ```
 
 ![Asset allocation card](docs/screenshots/default/allocation-card.png)
-
-#### iOS dark theme
-
-| Health | Portfolio |
-|--------|-----------|
-| ![Health dark](docs/screenshots/ios-dark/health-card.png) | ![Portfolio dark](docs/screenshots/ios-dark/portfolio-card.png) |
-
-![Overview card dark](docs/screenshots/ios-dark/overview-card.png)
-
-| Positions | Pies |
-|-----------|------|
-| ![Positions dark](docs/screenshots/ios-dark/positions-card.png) | ![Pies dark](docs/screenshots/ios-dark/pies-card.png) |
 
 ### Basic (no dependencies)
 
