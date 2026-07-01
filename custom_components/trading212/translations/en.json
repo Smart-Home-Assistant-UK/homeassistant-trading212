@@ -17,14 +17,14 @@
       },
       "sensors": {
         "title": "Choose Sensors",
-        "description": "Choose which sensors to create per position and pie. Sensors marked ⭐ are required for the lovelace investment card to work.",
+        "description": "Choose which sensors to create per position and pie.",
         "data": {
           "position_sensors": "Position sensors",
           "pie_sensors": "Pie sensors"
         },
         "data_description": {
-          "position_sensors": "Sensors marked ⭐ are required for the lovelace card to discover and display positions. P&L and P&L % appear in the card's main view; Average Price and Current Price only in the expanded detail panel.",
-          "pie_sensors": "Sensors marked ⭐ are required for the lovelace card to discover and display pies. P&L % appears in the card's main view; all others only in the expanded detail panel. Note: P&L is not shown by the lovelace card."
+          "position_sensors": "Value, Quantity, P&L, and P&L % are enabled by default and cover the lovelace card's main view. Average Price, Current Price, and Daily Gain/Loss (%) are opt-in and only shown in the expanded detail panel.",
+          "pie_sensors": "Value, Invested, P&L %, P&L, and Dividends Gained are enabled by default and cover the lovelace card's main view. The rest are opt-in and only shown in the expanded detail panel. Note: P&L is not shown by the lovelace card."
         }
       }
     },
@@ -51,8 +51,8 @@
         },
         "data_description": {
           "label": "A short name for this account (e.g. \"John\" or \"Jane\"). Required if you are adding more than one Trading212 integration.",
-          "position_sensors": "Sensors marked ⭐ are required for the lovelace card to discover and display positions. P&L and P&L % appear in the card's main view; Average Price and Current Price only in the expanded detail panel.",
-          "pie_sensors": "Sensors marked ⭐ are required for the lovelace card to discover and display pies. P&L % appears in the card's main view; all others only in the expanded detail panel. Note: P&L is not shown by the lovelace card."
+          "position_sensors": "Value, Quantity, P&L, and P&L % are enabled by default and cover the lovelace card's main view. Average Price, Current Price, and Daily Gain/Loss (%) are opt-in and only shown in the expanded detail panel.",
+          "pie_sensors": "Value, Invested, P&L %, P&L, and Dividends Gained are enabled by default and cover the lovelace card's main view. The rest are opt-in and only shown in the expanded detail panel. Note: P&L is not shown by the lovelace card."
         },
         "sections": {
           "sensor_selection": {
@@ -62,8 +62,8 @@
               "pie_sensors": "Pie sensors"
             },
             "data_description": {
-              "position_sensors": "Sensors marked ⭐ are required for the lovelace card to discover and display positions. P&L and P&L % appear in the card's main view; Average Price and Current Price only in the expanded detail panel.",
-              "pie_sensors": "Sensors marked ⭐ are required for the lovelace card to discover and display pies. P&L % appears in the card's main view; all others only in the expanded detail panel. Note: P&L is not shown by the lovelace card."
+              "position_sensors": "Value, Quantity, P&L, and P&L % are enabled by default and cover the lovelace card's main view. Average Price, Current Price, and Daily Gain/Loss (%) are opt-in and only shown in the expanded detail panel.",
+              "pie_sensors": "Value, Invested, P&L %, P&L, and Dividends Gained are enabled by default and cover the lovelace card's main view. The rest are opt-in and only shown in the expanded detail panel. Note: P&L is not shown by the lovelace card."
             }
           }
         }
@@ -76,8 +76,8 @@
   "selector": {
     "position_sensors": {
       "options": {
-        "value": "Value ⭐ required by lovelace card",
-        "quantity": "Quantity ⭐ required by lovelace card",
+        "value": "Value",
+        "quantity": "Quantity",
         "pnl": "P&L",
         "pnl_percent": "P&L %",
         "average_price": "Average Price",
@@ -88,8 +88,8 @@
     },
     "pie_sensors": {
       "options": {
-        "value": "Value ⭐ required by lovelace card",
-        "invested": "Invested ⭐ required by lovelace card",
+        "value": "Value",
+        "invested": "Invested",
         "pnl_percent": "P&L %",
         "pnl": "P&L",
         "progress": "Progress",
