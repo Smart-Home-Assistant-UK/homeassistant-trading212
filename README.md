@@ -13,7 +13,7 @@ A read-only [Home Assistant](https://www.home-assistant.io/) custom component (H
 
 > **Don't have a Trading212 account yet?** Sign up with [this referral link](https://www.trading212.com/invite/1BlRG9Ii19) and we both receive a free share worth up to £100.
 
-![Health card](docs/screenshots/default/health-card.png)
+![Health card](docs/screenshots/storybook/health-card.png)
 
 ---
 
@@ -155,19 +155,25 @@ type: custom:investment-portfolio-card
 
 Full dashboard YAML: [`docs/dashboards/investment-card.yaml`](docs/dashboards/investment-card.yaml)
 
-| Health | Portfolio |
-|--------|-----------|
-| ![Health card](docs/screenshots/default/health-card.png) | ![Portfolio card](docs/screenshots/default/portfolio-card.png) |
+> Screenshots below are rendered from the card's Storybook with sample data. Colours, backgrounds, and fonts come from HA's CSS custom properties, so the card adapts automatically to whatever theme you're running — there's no separate light/dark variant to maintain.
 
-![Overview card](docs/screenshots/default/overview-card.png)
+| Health | Overview |
+|--------|----------|
+| ![Health card](docs/screenshots/storybook/health-card.png) | ![Overview card](docs/screenshots/storybook/overview-card.png) |
 
 | Positions | Positions expanded |
 |-----------|--------------------|
-| ![Positions card](docs/screenshots/default/positions-card.png) | ![Positions expanded](docs/screenshots/default/positions-card-expanded.png) |
+| ![Positions card](docs/screenshots/storybook/positions-card.png) | ![Positions expanded](docs/screenshots/storybook/positions-card-expanded.png) |
 
 | Pies | Pies expanded |
 |------|---------------|
-| ![Pies card](docs/screenshots/default/pies-card.png) | ![Pies expanded](docs/screenshots/default/pies-card-expanded.png) |
+| ![Pies card](docs/screenshots/storybook/pies-card.png) | ![Pies expanded](docs/screenshots/storybook/pies-card-expanded.png) |
+
+#### Portfolio card
+
+All-in-one view combining overview, positions, and pies:
+
+![Portfolio card](docs/screenshots/storybook/portfolio-card.png)
 
 #### Asset allocation
 
@@ -186,7 +192,9 @@ type: custom:investment-allocation-card
 mode: pies
 ```
 
-![Asset allocation card](docs/screenshots/default/allocation-card.png)
+| Positions | Filtered to one pie | Pies |
+|-----------|----------------------|------|
+| ![Allocation positions](docs/screenshots/storybook/allocation-positions.png) | ![Allocation pie-filtered](docs/screenshots/storybook/allocation-pie-filtered.png) | ![Allocation pies](docs/screenshots/storybook/allocation-pies.png) |
 
 ### Basic (no dependencies)
 
