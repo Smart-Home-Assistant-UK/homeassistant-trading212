@@ -6,6 +6,8 @@ local/
 docs/superpowers/
 .superpowers
 .coverage
+htmlcov/
+coverage.xml
 .playwright-mcp/
 .venv_review/
 venv/

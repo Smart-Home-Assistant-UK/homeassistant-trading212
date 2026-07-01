@@ -1,6 +1,7 @@
 # Trading212 Home Assistant Integration
 
 [![GitHub release](https://img.shields.io/github/v/release/Smart-Home-Assistant-UK/homeassistant-trading212)](https://github.com/Smart-Home-Assistant-UK/homeassistant-trading212/releases)
+[![codecov](https://codecov.io/gh/Smart-Home-Assistant-UK/homeassistant-trading212/graph/badge.svg)](https://codecov.io/gh/Smart-Home-Assistant-UK/homeassistant-trading212)
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2024.1+-blue.svg)](https://www.home-assistant.io/)
